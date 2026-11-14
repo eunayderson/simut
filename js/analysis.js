@@ -115,3 +115,35 @@ export function toCsv(epochs) {
   }
   return rows.join("\n");
 }
+
+// Trechos contínuos do mesmo estado dentro do dia (para a linha do tempo).
+export function dayRuns(epochs, day, s) {
+  const from = dayStart(day), to = from + 86400000, len = s.epoch * 1000;
+  const runs = [];
+  for (const e of epochs) {
+    if (e.t < from || e.t >= to) continue;
+    const last = runs[runs.length - 1];
+    if (last && last.cls === e.cls && e.t - last.to < len * 1.5) last.to = e.t + len;
+    else runs.push({ from: e.t, to: e.t + len, cls: e.cls });
+  }
+  return runs;
+}
+
+// Momentos ativos: junta janelas não-repouso próximas (até 2 janelas de pausa)
+// e mantém só os que duram pelo menos 2 minutos.
+export function dayBouts(epochs, day, s) {
+  const from = dayStart(day), to = from + 86400000, len = s.epoch * 1000;
+  const bouts = [];
+  let cur = null;
+  for (const e of epochs) {
+    if (e.t < from || e.t >= to || e.cls === "rest") continue;
+    if (cur && e.t - cur.end <= 2 * len) {
+      cur.end = e.t + len; cur.active += len; if (e.cls === "vig") cur.vig += len;
+    } else {
+      if (cur) bouts.push(cur);
+      cur = { start: e.t, end: e.t + len, active: len, vig: e.cls === "vig" ? len : 0 };
+    }
+  }
+  if (cur) bouts.push(cur);
+  return bouts.filter((b) => b.end - b.start >= 120000);
+}
