@@ -28,9 +28,7 @@
         <span class="muted small" id="lastSync">Nunca sincronizado</span>
       </div>
       <div class="actions">
-        <button class="btn primary" id="btnConnect">Conectar sensor</button>
-        <button class="btn" id="btnSync" disabled>Baixar dados</button>
-        <button class="btn ghost" id="btnDisconnect" disabled>Desconectar</button>
+        <button class="btn primary big" id="btnConnect">Sincronizar sensor</button>
       </div>
       <div class="progress" id="progressWrap" hidden>
         <div class="bar"><span id="progressBar"></span></div>
@@ -46,7 +44,7 @@
         <p id="btHintText"></p>
         <div class="actions" id="btHintActions"></div>
       </div>
-      <p class="hint small">Antes de conectar, mexa no sensor: ele só aparece acordado.</p>
+      <p class="hint small">Mexa no sensor antes: ele só aparece acordado. Depois de baixar, o painel desconecta sozinho para poupar a bateria. Deixe o Bluetooth do celular desligado ao sincronizar pelo computador: o sensor aceita só uma conexão por vez.</p>
     </section>
 
     <section class="card">
@@ -58,15 +56,18 @@
           <button class="icon-btn" id="nextDay" aria-label="Próximo dia">›</button>
         </div>
       </div>
+      <p class="summary" id="daySummary">Sem dados neste dia.</p>
+      <h3>Linha do tempo</h3>
+      <div class="timeline" id="timeline" role="img" aria-label="Linha do tempo do dia"></div>
+      <div class="legend small"><span class="sw rest"></span>Repouso <span class="sw light"></span>Leve <span class="sw vig"></span>Intenso <span class="sw none"></span>Sem dados</div>
       <div class="stats">
         <div class="stat rest"><span class="label">Repouso</span><span class="value" id="stRest">-</span></div>
         <div class="stat light"><span class="label">Leve</span><span class="value" id="stLight">-</span></div>
         <div class="stat vig"><span class="label">Intenso</span><span class="value" id="stVig">-</span></div>
-        <div class="stat cov"><span class="label">Horas medidas</span><span class="value" id="stCov">-</span></div>
+        <div class="stat cov"><span class="label">Tempo medido</span><span class="value" id="stCov">-</span></div>
       </div>
-      <h3>Atividade por hora</h3>
-      <div class="chart" id="hourChart" role="img" aria-label="Gráfico de atividade por hora"></div>
-      <div class="legend small"><span class="sw rest"></span>Repouso <span class="sw light"></span>Leve <span class="sw vig"></span>Intenso</div>
+      <h3>Momentos ativos</h3>
+      <ul class="bouts" id="bouts"></ul>
     </section>
 
     <section class="card">

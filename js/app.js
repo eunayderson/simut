@@ -1,6 +1,6 @@
 import { PersonoSensor, bluetoothSupport, hex } from "./ble.js";
 import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js";
-import { buildEpochs, daySummary, nightSummary, trend, toCsv } from "./analysis.js";
+import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js";
 
 const $ = (id) => document.getElementById(id);
 const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now() };
@@ -23,9 +23,7 @@ function setPill(stateName, text) {
 }
 function setConnectedUi(on) {
   $("btnConnect").disabled = on;
-  $("btnSync").disabled = !on;
-  $("btnDisconnect").disabled = !on;
-  setPill(on ? "on" : "off", on ? "Sensor conectado" : "Sensor desconectado");
+  setPill(on ? "busy" : "off", on ? "Sincronizando..." : "Sensor desconectado (economizando bateria)");
 }
 sensor.addEventListener("disconnect", () => setConnectedUi(false));
 
@@ -39,49 +37,38 @@ async function refreshSensorInfo() {
   } catch (e) { log(`erro lendo info: ${e.message}`); return null; }
 }
 
+// Um toque só: conecta, baixa, salva e desconecta. Ficar conectado gasta bateria do sensor.
 $("btnConnect").addEventListener("click", async () => {
+  const bar = $("progressBar"), txt = $("progressText");
   try {
     setPill("busy", "Procurando sensor...");
-    await sensor.connect();
+    if (!sensor.connected) await sensor.connect();
     setConnectedUi(true);
-    await refreshSensorInfo();
-  } catch (e) {
-    log(`falha ao conectar: ${e.message}`);
-    setConnectedUi(false);
-    if (e.name !== "NotFoundError") alert(`Não consegui conectar: ${e.message}`);
-  }
-});
-
-$("btnDisconnect").addEventListener("click", () => sensor.disconnect());
-
-$("btnSync").addEventListener("click", async () => {
-  $("btnSync").disabled = true;
-  setPill("busy", "Baixando dados...");
-  $("progressWrap").hidden = false;
-  const bar = $("progressBar"), txt = $("progressText");
-  bar.style.width = "0%"; txt.textContent = "Iniciando...";
-  try {
+    $("progressWrap").hidden = false;
+    bar.style.width = "0%"; txt.textContent = "Lendo o sensor...";
     const clockBefore = await refreshSensorInfo();
     const t0 = Date.now();
+    txt.textContent = "Baixando...";
     const res = await sensor.download({
       onProgress: ({ packets, bad, expected }) => {
         if (expected) bar.style.width = `${Math.min(100, (packets / expected) * 100)}%`;
-        txt.textContent = `${packets} pacotes${expected ? ` de ~${expected}` : ""}${bad ? `, ${bad} com erro` : ""}`;
+        txt.textContent = `Baixando: ${packets} pacotes${expected ? ` de ~${expected}` : ""}${bad ? `, ${bad} com erro` : ""}`;
       },
     });
     const endAt = (clockBefore ? clockBefore.getTime() : t0) + (Date.now() - t0);
-    if (res.packets.length) {
-      await saveSync({ id: Date.now(), endAt, source: "bluetooth", packets: res.packets });
-    }
+    if (res.packets.length) await saveSync({ id: Date.now(), endAt, source: "bluetooth", packets: res.packets });
     bar.style.width = "100%";
-    txt.textContent = `${res.packets.length} pacotes salvos${res.bad ? `, ${res.bad} descartados por erro` : ""}${res.interrupted ? ". A conexão caiu no meio, salvei o que chegou." : "."}`;
+    txt.textContent = res.packets.length
+      ? `Pronto: ${res.packets.length} pacotes salvos${res.bad ? ` (${res.bad} descartados por erro)` : ""}${res.interrupted ? ". A conexão caiu no meio, salvei o que chegou." : "."}`
+      : "O sensor não tinha dados novos.";
     try { localStorage.setItem("simut.lastSync", String(Date.now())); } catch { /* ignore */ }
     await reload();
   } catch (e) {
-    log(`erro no download: ${e.message}`);
-    txt.textContent = `Erro: ${e.message}`;
+    log(`erro na sincronização: ${e.message}`);
+    if (e.name !== "NotFoundError") { $("progressWrap").hidden = false; txt.textContent = `Erro: ${e.message}`; }
   } finally {
-    setConnectedUi(sensor.connected);
+    sensor.disconnect();
+    setConnectedUi(false);
   }
 });
 
@@ -142,27 +129,58 @@ const fmtMin = (m) => {
   return h ? `${h}h${r ? ` ${String(r).padStart(2, "0")}` : ""}` : `${r} min`;
 };
 
-function renderHourChart(hours) {
-  const el = $("hourChart");
-  if (!hours.some((h) => h.rest + h.light + h.vig > 0)) {
-    el.innerHTML = `<div class="empty">Sem dados neste dia. Conecte o sensor e baixe os dados.</div>`;
+const hhmm = (t) => new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const CLS_NAME = { rest: "repouso", light: "leve", vig: "intenso" };
+
+function renderTimeline(day) {
+  const el = $("timeline");
+  const runs = dayRuns(state.epochs, day, state.settings);
+  const from = new Date(day); from.setHours(0, 0, 0, 0);
+  const W = 1000, H = 64, barY = 6, barH = 34;
+  const x = (t) => ((t - from.getTime()) / 86400000) * W;
+  let g = `<rect x="0" y="${barY}" width="${W}" height="${barH}" rx="8" fill="var(--none)"/>`;
+  for (const r of runs) {
+    const w = Math.max(1.2, x(r.to) - x(r.from));
+    g += `<rect x="${x(r.from).toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barH}" fill="var(--${r.cls})"><title>${hhmm(r.from)} a ${hhmm(r.to)}: ${CLS_NAME[r.cls]}</title></rect>`;
+  }
+  if (isToday(day)) {
+    const nx = x(Date.now());
+    g += `<line x1="${nx}" x2="${nx}" y1="2" y2="${barY + barH + 4}" stroke="var(--ink)" stroke-width="2"/>`;
+  }
+  for (let h = 0; h <= 24; h += 3) {
+    const tx = (h / 24) * W;
+    g += `<line x1="${tx}" x2="${tx}" y1="${barY + barH}" y2="${barY + barH + 5}" stroke="var(--muted)"/>`;
+    g += `<text x="${Math.min(W - 14, Math.max(14, tx))}" y="${H - 4}" font-size="20" text-anchor="middle" fill="var(--muted)">${h}h</text>`;
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">${g}</svg>`;
+  // texto do eixo não pode esticar: refaz o eixo em HTML
+  el.querySelectorAll("text").forEach((t) => t.remove());
+  el.insertAdjacentHTML("beforeend", `<div class="ticks">${[0, 3, 6, 9, 12, 15, 18, 21, 24].map((h) => `<span>${h}h</span>`).join("")}</div>`);
+}
+
+function renderBouts(day) {
+  const ul = $("bouts");
+  const list = dayBouts(state.epochs, day, state.settings);
+  if (!list.length) {
+    ul.innerHTML = `<li class="empty-li">Nenhum momento ativo de 2 minutos ou mais neste dia.</li>`;
     return;
   }
-  const W = 480, H = 170, pad = 22, bw = (W - pad) / 24;
-  let bars = "";
-  hours.forEach((h, i) => {
-    let y = H - 18;
-    for (const k of ["rest", "light", "vig"]) {
-      const v = h[k]; if (!v) continue;
-      const hh = (v / 60) * (H - 30);
-      y -= hh;
-      bars += `<rect x="${pad + i * bw + 1.5}" y="${y.toFixed(1)}" width="${(bw - 3).toFixed(1)}" height="${hh.toFixed(1)}" rx="2" fill="var(--${k})"><title>${i}h: ${fmtMin(v)} ${k === "rest" ? "repouso" : k === "light" ? "leve" : "intenso"}</title></rect>`;
-    }
-  });
-  let axis = "";
-  for (const i of [0, 6, 12, 18, 23]) axis += `<text x="${pad + i * bw + bw / 2}" y="${H - 4}" font-size="10" text-anchor="middle" fill="var(--muted)">${i}h</text>`;
-  axis += `<text x="0" y="16" font-size="10" fill="var(--muted)">60m</text><line x1="${pad}" x2="${W}" y1="${12}" y2="${12}" stroke="var(--line)" stroke-dasharray="3 3"/>`;
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${axis}${bars}</svg>`;
+  ul.innerHTML = list.reverse().map((b) => {
+    const min = Math.round((b.end - b.start) / 60000);
+    const intense = b.vig / (b.active || 1) >= 0.3;
+    return `<li><span class="b-dot ${intense ? "vig" : "light"}"></span>
+      <span class="b-time">${hhmm(b.start)} às ${hhmm(b.end)}</span>
+      <span class="b-dur">${fmtMin(min)}</span>
+      <span class="b-kind">${intense ? "intenso" : "leve"}</span></li>`;
+  }).join("");
+}
+
+function summarySentence(day, tot, covered) {
+  if (!covered) return "Sem dados neste dia. Sincronize o sensor para ver como o Simut passou o dia.";
+  const active = tot.light + tot.vig;
+  const nb = dayBouts(state.epochs, day, state.settings).length;
+  const quando = isToday(day) ? "Hoje" : "Neste dia";
+  return `${quando}, em ${fmtMin(covered)} medidos, o Simut ficou ${fmtMin(tot.rest)} em repouso e ${fmtMin(active)} em movimento${tot.vig ? ` (${fmtMin(tot.vig)} intenso)` : ""}, com ${nb} ${nb === 1 ? "momento ativo" : "momentos ativos"}.`;
 }
 
 function renderTrend(rows) {
@@ -202,7 +220,9 @@ function render() {
   $("stLight").textContent = has ? fmtMin(day.tot.light) : "-";
   $("stVig").textContent = has ? fmtMin(day.tot.vig) : "-";
   $("stCov").textContent = has ? fmtMin(day.coveredMin) : "-";
-  renderHourChart(day.hours);
+  $("daySummary").textContent = summarySentence(state.day, day.tot, day.coveredMin);
+  renderTimeline(state.day);
+  renderBouts(state.day);
 
   const n = nightSummary(state.epochs, state.day, s);
   $("ntRest").textContent = n ? `${Math.round((n.restMin / n.coveredMin) * 100)}%` : "-";
