@@ -181,3 +181,21 @@ footer { max-width: 920px; margin: 20px auto 0; text-align: center; }
 .b-kind { grid-area: kind; font-size: .8rem; color: var(--muted); }
 .b-dur { grid-area: dur; font-weight: 700; }
 .bouts .empty-li { display: block; color: var(--muted); }
+
+.now { background: var(--bg); border-radius: 12px; padding: 12px; font-weight: 600; margin: 10px 0; }
+.now .timer { font-variant-numeric: tabular-nums; color: var(--accent); float: right; }
+.state-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px; }
+@media (min-width: 560px) { .state-grid { grid-template-columns: repeat(3, 1fr); } }
+.state-btn { min-height: 56px; justify-content: center; border-left: 6px solid var(--line); }
+.state-btn.rest { border-left-color: var(--rest); } .state-btn.light { border-left-color: var(--light); } .state-btn.vig { border-left-color: var(--vig); }
+.state-btn.active { background: var(--accent); color: var(--accent-ink); }
+.marks { margin: 4px 0 0; padding-left: 20px; color: var(--muted); max-height: 160px; overflow: auto; }
+.val-result table { width: 100%; border-collapse: collapse; font-size: .85rem; margin: 6px 0 12px; }
+.val-result th, .val-result td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.val-result th:first-child, .val-result td:first-child { text-align: left; }
+.val-result .big-num { font-size: 1.3rem; font-weight: 700; }
+.val-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.val-kpis div { background: var(--bg); border-radius: 12px; padding: 10px; }
+.val-kpis span { display: block; font-size: .75rem; color: var(--muted); }
+.val-note { font-size: .85rem; color: var(--muted); }
+.card a { color: var(--accent); }

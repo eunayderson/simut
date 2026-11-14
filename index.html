@@ -84,6 +84,23 @@
       <div class="chart" id="trendChart" role="img" aria-label="Gráfico de minutos ativos nos últimos 14 dias"></div>
     </section>
 
+    <section class="card" id="valCard">
+      <div class="card-head"><h2>Sessão de validação</h2><a class="small" href="https://github.com/eunayderson/simut/blob/main/docs/validacao.md" target="_blank" rel="noopener">Ver protocolo</a></div>
+      <p class="small muted">Toque no estado no momento em que ele começa. Cada estado por pelo menos 7 minutos. Depois sincronize o sensor e veja o resultado aqui.</p>
+      <div class="now" id="valNow">Nenhuma sessão em andamento</div>
+      <div class="state-grid" id="stateGrid"></div>
+      <div class="actions">
+        <button class="btn" id="valEnd">Encerrar</button>
+        <button class="btn ghost" id="valUndo">Desfazer última</button>
+        <button class="btn ghost" id="valCopy">Copiar marcações</button>
+        <button class="btn ghost" id="valPaste">Colar marcações</button>
+        <button class="btn ghost danger" id="valClear">Limpar marcações</button>
+      </div>
+      <ol class="marks small" id="valMarks"></ol>
+      <h3>Resultado</h3>
+      <div id="valResult" class="val-result"><p class="muted small">Ainda sem marcações com dados do sensor no mesmo horário.</p></div>
+    </section>
+
     <section class="card">
       <details>
         <summary><h2>Validação e calibração</h2></summary>
