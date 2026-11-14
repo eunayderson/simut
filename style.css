@@ -103,7 +103,10 @@ h3 { margin: 18px 0 8px; font-size: .95rem; color: var(--muted); font-weight: 60
 .kv dt { font-size: .78rem; color: var(--muted); }
 .kv dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
 .hint { color: var(--muted); margin: 12px 0 0; }
-#btHint { color: var(--warn-ink); background: var(--warn-bg); padding: 10px 12px; border-radius: 12px; }
+.bt-help { color: var(--warn-ink); background: var(--warn-bg); padding: 12px 14px; border-radius: 14px; margin-top: 12px; }
+.bt-help p { margin: 0 0 10px; }
+.bt-help .actions { margin: 0; }
+.bt-help .btn { text-decoration: none; }
 
 .daynav { display: flex; align-items: center; gap: 6px; }
 .daynav span { min-width: 120px; text-align: center; font-weight: 600; }

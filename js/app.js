@@ -229,20 +229,57 @@ async function reload() {
   recompute();
 }
 
+// ---------- ajuda quando o navegador não tem Bluetooth ----------
+const BLUEFY_URL = "https://apps.apple.com/br/app/bluefy-web-ble-browser/id1492822055";
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isAndroid = () => /Android/.test(navigator.userAgent);
+
+function showBtHelp(reason) {
+  const box = $("btHint"), text = $("btHintText"), acts = $("btHintActions");
+  $("btnConnect").disabled = true;
+  box.hidden = false;
+  acts.innerHTML = "";
+  const addBtn = (label, onClick, primary = false) => {
+    const b = document.createElement("button");
+    b.className = `btn${primary ? " primary" : ""}`; b.type = "button"; b.textContent = label;
+    b.addEventListener("click", onClick); acts.append(b); return b;
+  };
+  const copyBtn = () => {
+    const b = addBtn("Copiar link do painel", async () => {
+      try { await navigator.clipboard.writeText(location.href); b.textContent = "Link copiado"; }
+      catch { prompt("Copie o link:", location.href); }
+    });
+  };
+  if (reason === "off") {
+    text.textContent = "O Bluetooth do aparelho está desligado. Ligue e recarregue a página.";
+    addBtn("Recarregar", () => location.reload(), true);
+  } else if (isIOS()) {
+    text.textContent = "No iPhone, o Safari e o Chrome não conseguem usar Bluetooth em sites (limitação da Apple). Instale o app gratuito Bluefy, abra ele e cole o link do painel.";
+    const a = Object.assign(document.createElement("a"), { className: "btn primary", href: BLUEFY_URL, target: "_blank", rel: "noopener", textContent: "Baixar o Bluefy" });
+    acts.append(a);
+    copyBtn();
+  } else if (isAndroid()) {
+    text.textContent = "Este navegador não tem Bluetooth para sites. Abra o painel no Google Chrome.";
+    const a = Object.assign(document.createElement("a"), {
+      className: "btn primary", textContent: "Abrir no Chrome",
+      href: `intent://${location.host}${location.pathname}#Intent;scheme=https;package=com.android.chrome;end`,
+    });
+    acts.append(a);
+    copyBtn();
+  } else {
+    text.textContent = "Este navegador não tem Bluetooth para sites. Use o Google Chrome ou o Microsoft Edge. Você ainda pode importar arquivos .bin.";
+    copyBtn();
+  }
+  log(`bluetooth indisponível (${reason}), ${isIOS() ? "iOS" : isAndroid() ? "Android" : "desktop"}`);
+}
+
 // ---------- início ----------
 (async () => {
   fillSettings();
   const bt = await bluetoothSupport();
-  const hint = $("btHint");
-  if (bt !== "ok") {
-    $("btnConnect").disabled = true;
-    hint.hidden = false;
-    hint.textContent = bt === "off"
-      ? "O Bluetooth do aparelho parece desligado. Ligue e recarregue a página."
-      : "Este navegador não fala Bluetooth com o sensor. Use o Chrome no computador ou no Android. No iPhone, use o app Bluefy. Você ainda pode importar arquivos .bin.";
-  }
+  if (bt !== "ok") showBtHelp(bt);
   log(`painel iniciado (bluetooth: ${bt})`);
   await reload();
 })();
 
-window.simut = { state, recompute, hex };
+window.simut = { state, recompute, hex, showBtHelp };
