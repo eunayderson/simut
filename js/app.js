@@ -236,7 +236,8 @@ const isAndroid = () => /Android/.test(navigator.userAgent);
 
 function showBtHelp(reason) {
   const box = $("btHint"), text = $("btHintText"), acts = $("btHintActions");
-  $("btnConnect").disabled = true;
+  // "off" pode ser falso negativo (ex.: navegador sem permissão no macOS): deixa tentar mesmo assim.
+  $("btnConnect").disabled = reason !== "off";
   box.hidden = false;
   acts.innerHTML = "";
   const addBtn = (label, onClick, primary = false) => {
@@ -251,8 +252,10 @@ function showBtHelp(reason) {
     });
   };
   if (reason === "off") {
-    text.textContent = "O Bluetooth do aparelho está desligado. Ligue e recarregue a página.";
-    addBtn("Recarregar", () => location.reload(), true);
+    text.textContent = /Mac/.test(navigator.platform) && !isIOS()
+      ? "O navegador diz que o Bluetooth está indisponível. No Mac isso costuma ser falta de permissão: Ajustes do Sistema > Privacidade e Segurança > Bluetooth > ative o seu navegador (Chrome ou Brave), feche e abra o navegador de novo. Você pode tentar conectar mesmo assim."
+      : "O navegador diz que o Bluetooth está indisponível. Confira se o Bluetooth está ligado e se o navegador tem permissão. Você pode tentar conectar mesmo assim.";
+    addBtn("Recarregar", () => location.reload());
   } else if (isIOS()) {
     text.textContent = "No iPhone, o Safari e o Chrome não conseguem usar Bluetooth em sites (limitação da Apple). Instale o app gratuito Bluefy, abra ele e cole o link do painel.";
     const a = Object.assign(document.createElement("a"), { className: "btn primary", href: BLUEFY_URL, target: "_blank", rel: "noopener", textContent: "Baixar o Bluefy" });
