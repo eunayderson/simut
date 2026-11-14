@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6efe6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1712" media="(prefers-color-scheme: dark)">
+  <title>Simut | Painel de atividade</title>
+  <link rel="icon" href="img/simut.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="img/simut.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <img class="avatar" src="img/simut.svg" alt="Desenho do Simut, um Shih Tzu" width="112" height="112">
+    <div class="hero-text">
+      <h1>Simut</h1>
+      <p class="sub">Shih Tzu, 12 anos</p>
+      <p class="pill" id="sensorPill" data-state="off"><span class="dot"></span><span id="sensorPillText">Sensor desconectado</span></p>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="sensorCard">
+      <div class="card-head">
+        <h2>Sensor</h2>
+        <span class="muted small" id="lastSync">Nunca sincronizado</span>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btnConnect">Conectar sensor</button>
+        <button class="btn" id="btnSync" disabled>Baixar dados</button>
+        <button class="btn ghost" id="btnDisconnect" disabled>Desconectar</button>
+      </div>
+      <div class="progress" id="progressWrap" hidden>
+        <div class="bar"><span id="progressBar"></span></div>
+        <p class="small muted" id="progressText"></p>
+      </div>
+      <dl class="kv" id="sensorInfo">
+        <div><dt>Relógio do sensor</dt><dd id="kvClock">-</dd></div>
+        <div><dt>Nível (provisório)</dt><dd id="kvLevel">-</dd></div>
+        <div><dt>Pacotes guardados</dt><dd id="kvPackets">0</dd></div>
+        <div><dt>Amostras decodificadas</dt><dd id="kvSamples">0</dd></div>
+      </dl>
+      <p class="hint" id="btHint" hidden></p>
+      <p class="hint small">Antes de conectar, mexa no sensor: ele só aparece acordado.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Dia</h2>
+        <div class="daynav">
+          <button class="icon-btn" id="prevDay" aria-label="Dia anterior">‹</button>
+          <span id="dayLabel">Hoje</span>
+          <button class="icon-btn" id="nextDay" aria-label="Próximo dia">›</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat rest"><span class="label">Repouso</span><span class="value" id="stRest">-</span></div>
+        <div class="stat light"><span class="label">Leve</span><span class="value" id="stLight">-</span></div>
+        <div class="stat vig"><span class="label">Intenso</span><span class="value" id="stVig">-</span></div>
+        <div class="stat cov"><span class="label">Horas medidas</span><span class="value" id="stCov">-</span></div>
+      </div>
+      <h3>Atividade por hora</h3>
+      <div class="chart" id="hourChart" role="img" aria-label="Gráfico de atividade por hora"></div>
+      <div class="legend small"><span class="sw rest"></span>Repouso <span class="sw light"></span>Leve <span class="sw vig"></span>Intenso</div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Noite</h2><span class="muted small">22h às 6h</span></div>
+      <div class="stats three">
+        <div class="stat"><span class="label">Tempo em repouso</span><span class="value" id="ntRest">-</span></div>
+        <div class="stat"><span class="label">Despertares</span><span class="value" id="ntWakes">-</span></div>
+        <div class="stat"><span class="label">Maior repouso contínuo</span><span class="value" id="ntLongest">-</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Últimos 14 dias</h2><span class="muted small">minutos ativos por dia</span></div>
+      <div class="chart" id="trendChart" role="img" aria-label="Gráfico de minutos ativos nos últimos 14 dias"></div>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary><h2>Validação e calibração</h2></summary>
+        <p class="warn">Os números deste painel ainda são <strong>provisórios</strong>. O formato interno do sensor foi decodificado por engenharia reversa e os limiares de repouso, leve e intenso precisam ser calibrados com vídeo do Simut antes de qualquer conclusão.</p>
+        <form class="settings" id="settingsForm">
+          <label>Taxa de amostragem (Hz)<input type="number" min="1" max="400" step="1" name="hz"></label>
+          <label>Janela de análise (s)<input type="number" min="5" max="300" step="5" name="epoch"></label>
+          <label>Limiar leve (mg)<input type="number" min="1" max="2000" step="1" name="tLight"></label>
+          <label>Limiar intenso (mg)<input type="number" min="1" max="4000" step="1" name="tVig"></label>
+          <label>Unidades por g<input type="number" min="1" max="4096" step="1" name="lsbPerG"></label>
+          <button class="btn" type="submit">Salvar e recalcular</button>
+        </form>
+        <div class="actions">
+          <button class="btn" id="btnCsv">Exportar janelas (CSV)</button>
+          <label class="btn file">Importar .bin do Mac<input type="file" id="fileBin" accept=".bin" hidden></label>
+          <button class="btn danger ghost" id="btnClear">Apagar dados deste aparelho</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary><h2>Diagnóstico</h2></summary>
+        <pre class="log" id="log"></pre>
+      </details>
+    </section>
+  </main>
+
+  <footer class="small muted">Os dados ficam só neste navegador. Nada é enviado para servidor.</footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

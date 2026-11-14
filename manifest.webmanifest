@@ -1,0 +1,9 @@
+{
+  "name": "Simut",
+  "short_name": "Simut",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6efe6",
+  "theme_color": "#f6efe6",
+  "icons": [{ "src": "img/simut.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
