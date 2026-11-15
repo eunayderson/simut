@@ -96,15 +96,49 @@ export function nightSummary(epochs, day, s) {
   return { restMin: rest, coveredMin: win.length * min, wakes, longestMin: longest };
 }
 
+// Um item por dia (o mais antigo primeiro, endDay por último). Dia sem janelas tem
+// covered: 0 e minutos null (ausência não é zero).
 export function trend(epochs, endDay, s, days = 14) {
   const out = [];
   const end = dayStart(endDay);
   for (let i = days - 1; i >= 0; i--) {
-    const d = end - i * 86400000;
+    const d = addDays(end, -i);
     const { tot, coveredMin } = daySummary(epochs, d, s);
-    out.push({ day: d, active: tot.light + tot.vig, vig: tot.vig, covered: coveredMin });
+    out.push(coveredMin
+      ? { day: d, active: tot.light + tot.vig, vig: tot.vig, light: tot.light, rest: tot.rest, covered: coveredMin }
+      : { day: d, active: null, vig: null, light: null, rest: null, covered: 0 });
   }
   return out;
+}
+
+// Início do dia "n" dias depois de t (respeita horário de verão).
+function addDays(t, n) { const d = new Date(t); d.setDate(d.getDate() + n); d.setHours(0, 0, 0, 0); return d.getTime(); }
+
+// Linhas do actograma: um dia por linha, o mais antigo primeiro (hoje embaixo).
+// Cada linha: { day, runs, covered (min), tot: {rest, light, vig} | null }.
+export function actogramRows(epochs, endDay, s, days = 7) {
+  const out = [];
+  const end = dayStart(endDay);
+  for (let i = days - 1; i >= 0; i--) {
+    const d = addDays(end, -i);
+    const { tot, coveredMin } = daySummary(epochs, d, s);
+    out.push({ day: d, runs: dayRuns(epochs, d, s), covered: coveredMin, tot: coveredMin ? tot : null });
+  }
+  return out;
+}
+
+// Perfil de 24 h: intensidade média (mg) por faixa do dia, agregando as janelas de [from, to).
+// Faixa sem janelas tem mg null (nunca zero). n = janelas; days = dias distintos com dado na faixa.
+export function profile24(epochs, { from = -Infinity, to = Infinity, binMin = 30 } = {}) {
+  const nb = Math.round(1440 / binMin);
+  const acc = Array.from({ length: nb }, () => ({ sum: 0, n: 0, days: new Set() }));
+  for (const e of epochs) {
+    if (e.t < from || e.t >= to) continue;
+    const d = new Date(e.t);
+    const i = Math.min(nb - 1, Math.floor((d.getHours() * 60 + d.getMinutes()) / binMin));
+    acc[i].sum += e.mg; acc[i].n++; acc[i].days.add(d.toDateString());
+  }
+  return acc.map((a, i) => ({ start: i * binMin, end: (i + 1) * binMin, mg: a.n ? a.sum / a.n : null, n: a.n, days: a.days.size }));
 }
 
 export function toCsv(epochs) {
@@ -116,15 +150,16 @@ export function toCsv(epochs) {
   return rows.join("\n");
 }
 
-// Trechos contínuos do mesmo estado dentro do dia (para a linha do tempo).
+// Trechos contínuos do mesmo estado dentro do dia (para a linha do tempo e o actograma).
+// Cada trecho: { from, to, cls, mg (média das janelas), n (janelas) }.
 export function dayRuns(epochs, day, s) {
   const from = dayStart(day), to = from + 86400000, len = s.epoch * 1000;
   const runs = [];
   for (const e of epochs) {
     if (e.t < from || e.t >= to) continue;
     const last = runs[runs.length - 1];
-    if (last && last.cls === e.cls && e.t - last.to < len * 1.5) last.to = e.t + len;
-    else runs.push({ from: e.t, to: e.t + len, cls: e.cls });
+    if (last && last.cls === e.cls && e.t - last.to < len * 1.5) { last.to = e.t + len; last.mg = (last.mg * last.n + e.mg) / (last.n + 1); last.n++; }
+    else runs.push({ from: e.t, to: e.t + len, cls: e.cls, mg: e.mg, n: 1 });
   }
   return runs;
 }

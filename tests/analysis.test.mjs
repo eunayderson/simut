@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decodePayload, buildEpochs, classify, daySummary, nightSummary, trend, dayRuns, dayBouts, toCsv } from "../js/analysis.js";
+import { decodePayload, buildEpochs, classify, daySummary, nightSummary, trend, dayRuns, dayBouts, toCsv, actogramRows, profile24 } from "../js/analysis.js";
 import { makePackets, samplesFor, SETTINGS, at, epochsFrom } from "./helpers.mjs";
 
 test("decodePayload pula marcadores e lê x, y, z em int8", () => {
@@ -74,13 +74,74 @@ test("nightSummary: 22h às 6h, null sem dados", () => {
 });
 
 test("trend devolve um item por dia, hoje por último", () => {
-  const ep = epochsFrom(at(10), ["light", "vig"]);
+  const ep = epochsFrom(at(10), ["light", "vig", "rest"]);
   const t = trend(ep, at(20), SETTINGS);
   assert.equal(t.length, 14);
-  assert.equal(t[13].active, 2);
-  assert.equal(t[13].vig, 1);
-  assert.equal(t[13].covered, 2);
-  assert.equal(t[12].covered, 0);
+  assert.deepEqual(t[13], { day: at(0), active: 2, vig: 1, light: 1, rest: 1, covered: 3 });
+  assert.equal(t[12].day, at(0, 0, 13));
+  assert.equal(t[0].day, at(0, 0, 1));
+});
+
+test("trend: dia sem janelas tem covered 0 e nunca zeros de classe", () => {
+  const t = trend(epochsFrom(at(10), ["light"]), at(20), SETTINGS, 7);
+  assert.equal(t.length, 7);
+  assert.deepEqual(t[5], { day: at(0, 0, 13), active: null, vig: null, light: null, rest: null, covered: 0 });
+  assert.deepEqual(trend([], at(20), SETTINGS, 3).map((r) => [r.covered, r.active]), [[0, null], [0, null], [0, null]]);
+});
+
+test("trend: dia só com repouso tem active 0 (medido), diferente de sem dados", () => {
+  const t = trend(epochsFrom(at(10), ["rest", "rest"]), at(20), SETTINGS, 2);
+  assert.equal(t[1].active, 0);
+  assert.equal(t[1].covered, 2);
+  assert.equal(t[0].active, null);
+});
+
+test("dayRuns traz mg médio e número de janelas por trecho", () => {
+  const ep = [{ t: at(10), mg: 80, cls: "light" }, { t: at(10, 1), mg: 120, cls: "light" }, { t: at(10, 2), mg: 5, cls: "rest" }];
+  const runs = dayRuns(ep, at(10), SETTINGS);
+  assert.equal(runs[0].mg, 100);
+  assert.equal(runs[0].n, 2);
+  assert.equal(runs[1].n, 1);
+});
+
+test("actogramRows: uma linha por dia, a mais antiga primeiro, sem dados = covered 0 e tot null", () => {
+  const ep = [...epochsFrom(at(8, 0, 12), ["rest", "light"]), ...epochsFrom(at(22, 0, 14), ["vig", "vig", "rest"])];
+  const rows = actogramRows(ep, at(23, 0, 14), SETTINGS, 4);
+  assert.deepEqual(rows.map((r) => r.day), [at(0, 0, 11), at(0, 0, 12), at(0, 0, 13), at(0, 0, 14)]);
+  assert.deepEqual(rows.map((r) => r.covered), [0, 2, 0, 3]);
+  assert.equal(rows[0].tot, null);
+  assert.deepEqual(rows[0].runs, []);
+  assert.equal(rows[2].tot, null);
+  assert.deepEqual(rows[3].tot, { rest: 1, light: 0, vig: 2 });
+  assert.deepEqual(rows[3].runs.map((r) => r.cls), ["vig", "rest"]);
+  assert.equal(actogramRows([], at(12), SETTINGS).length, 7);
+});
+
+test("profile24: média por faixa de 30 min, n por faixa e null nas faixas vazias", () => {
+  const ep = [
+    { t: at(10, 0, 13), mg: 100, cls: "light" },
+    { t: at(10, 10, 13), mg: 200, cls: "light" },
+    { t: at(10, 5, 14), mg: 300, cls: "vig" },
+    { t: at(23, 59, 14), mg: 10, cls: "rest" },
+  ];
+  const bins = profile24(ep, { binMin: 30 });
+  assert.equal(bins.length, 48);
+  assert.deepEqual(bins[20], { start: 600, end: 630, mg: 200, n: 3, days: 2 });
+  assert.equal(bins[47].mg, 10);
+  assert.equal(bins[47].n, 1);
+  assert.equal(bins[0].mg, null);
+  assert.equal(bins[0].n, 0);
+  assert.equal(bins[0].days, 0);
+  assert.equal(bins.filter((b) => b.mg === null).length, 46);
+});
+
+test("profile24: respeita o período [from, to) e o tamanho da faixa", () => {
+  const ep = [{ t: at(10, 0, 13), mg: 100, cls: "light" }, { t: at(10, 0, 14), mg: 300, cls: "vig" }];
+  const only14 = profile24(ep, { from: at(0, 0, 14), to: at(0, 0, 15), binMin: 60 });
+  assert.equal(only14.length, 24);
+  assert.equal(only14[10].mg, 300);
+  assert.equal(only14[10].n, 1);
+  assert.ok(profile24([], {}).every((b) => b.mg === null && b.n === 0));
 });
 
 test("toCsv mantém o cabeçalho existente", () => {
