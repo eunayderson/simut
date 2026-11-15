@@ -36,13 +36,16 @@ export function watchWidth(el, draw) {
     if (w > 0 && w !== last) { last = w; draw(w); }
   };
   // o ResizeObserver já agrupa por quadro; desenhar aqui não realimenta (a altura muda, a largura não)
-  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(run) : null;
+  // (desenho no próximo quadro: evita o aviso "ResizeObserver loop" quando a barra de rolagem aparece)
+  let raf = 0;
+  const later = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(run); };
+  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(later) : null;
   ro?.observe(el);
   const onWin = () => run();
   window.addEventListener("resize", onWin);
   return {
     redraw() { last = -1; run(); },
-    stop() { ro?.disconnect(); window.removeEventListener("resize", onWin); },
+    stop() { cancelAnimationFrame(raf); ro?.disconnect(); window.removeEventListener("resize", onWin); },
   };
 }
 

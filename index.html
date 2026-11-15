@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#F7F9F7">
   <meta name="color-scheme" content="light">
-  <title>Simut | Painel de atividade</title>
+  <meta name="description" content="SIMUT: monitoramento de atividade e repouso de animais com sensor de movimento.">
+  <title>SIMUT</title>
   <link rel="icon" href="img/simut.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="img/simut.svg">
   <link rel="manifest" href="manifest.webmanifest">
@@ -13,117 +14,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="css/tokens.css?v=10">
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="css/base.css?v=10">
+  <link rel="stylesheet" href="css/components.css?v=10">
+  <link rel="stylesheet" href="css/layout.css?v=10">
+  <link rel="stylesheet" href="css/pages.css?v=10">
 </head>
-<body>
-  <header class="hero">
-    <img class="avatar" src="img/simut.svg" alt="Desenho do Simut, um Shih Tzu" width="112" height="112">
-    <div class="hero-text">
-      <h1>Simut</h1>
-      <p class="sub">Shih Tzu, 12 anos</p>
-      <p class="pill" id="sensorPill" data-state="off"><span class="dot"></span><span id="sensorPillText">Sensor desconectado</span></p>
+<body data-layout="plain">
+  <a class="skip-link" id="skipLink" href="#view">Pular para o conteúdo</a>
+  <div class="shell">
+    <header class="topbar" id="topbar"></header>
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="nav-backdrop" id="navBackdrop" hidden></div>
+    <div class="main-wrap">
+      <p class="err-banner" id="errBanner" role="alert" hidden></p>
+      <main class="view" id="view" tabindex="-1">
+        <p class="boot muted">Carregando seus dados...</p>
+      </main>
     </div>
-  </header>
-
-  <p class="err-banner" id="errBanner" hidden></p>
-  <main>
-    <section class="card" id="sensorCard">
-      <div class="card-head">
-        <h2>Sensor</h2>
-        <span class="muted small" id="lastSync">Nunca sincronizado</span>
-      </div>
-      <div class="actions">
-        <button class="btn primary big" id="btnConnect">Sincronizar sensor</button>
-      </div>
-      <div class="progress" id="progressWrap" hidden>
-        <div class="bar"><span id="progressBar"></span></div>
-        <p class="small muted" id="progressText"></p>
-      </div>
-      <dl class="kv" id="sensorInfo">
-        <div><dt>Relógio do sensor</dt><dd id="kvClock">-</dd></div>
-        <div><dt>Nível (provisório)</dt><dd id="kvLevel">-</dd></div>
-        <div><dt>Pacotes guardados</dt><dd id="kvPackets">0</dd></div>
-        <div><dt>Amostras decodificadas</dt><dd id="kvSamples">0</dd></div>
-        <div class="wide"><dt>Nuvem</dt><dd id="kvCloud">Desligada</dd></div>
-      </dl>
-      <div class="bt-help" id="btHint" hidden>
-        <p id="btHintText"></p>
-        <div class="actions" id="btHintActions"></div>
-      </div>
-      <p class="hint small" id="levelHistory"></p>
-      <p class="hint small">Mexa no sensor antes: ele só aparece acordado. Depois de baixar, o painel desconecta sozinho para poupar a bateria. Deixe o Bluetooth do celular desligado ao sincronizar pelo computador: o sensor aceita só uma conexão por vez.</p>
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <h2>Dia</h2>
-        <div class="daynav">
-          <button class="icon-btn" id="prevDay" aria-label="Dia anterior">‹</button>
-          <span id="dayLabel">Hoje</span>
-          <button class="icon-btn" id="nextDay" aria-label="Próximo dia">›</button>
-        </div>
-      </div>
-      <p class="summary" id="daySummary">Sem dados neste dia.</p>
-      <h3>Linha do tempo</h3>
-      <div class="timeline" id="timeline" role="img" aria-label="Linha do tempo do dia"></div>
-      <div class="legend small"><span class="sw rest"></span>Repouso <span class="sw light"></span>Leve <span class="sw vig"></span>Intenso <span class="sw none"></span>Sem dados</div>
-      <div class="stats">
-        <div class="stat rest"><span class="label">Repouso</span><span class="value" id="stRest">-</span></div>
-        <div class="stat light"><span class="label">Leve</span><span class="value" id="stLight">-</span></div>
-        <div class="stat vig"><span class="label">Intenso</span><span class="value" id="stVig">-</span></div>
-        <div class="stat cov"><span class="label">Tempo medido</span><span class="value" id="stCov">-</span></div>
-      </div>
-      <h3>Momentos ativos</h3>
-      <ul class="bouts" id="bouts"></ul>
-    </section>
-
-    <section class="card">
-      <div class="card-head"><h2>Noite</h2><span class="muted small">22h às 6h</span></div>
-      <div class="stats three">
-        <div class="stat"><span class="label">Tempo em repouso</span><span class="value" id="ntRest">-</span></div>
-        <div class="stat"><span class="label">Despertares</span><span class="value" id="ntWakes">-</span></div>
-        <div class="stat"><span class="label">Maior repouso contínuo</span><span class="value" id="ntLongest">-</span></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-head"><h2>Últimos 14 dias</h2><span class="muted small">minutos ativos por dia</span></div>
-      <div class="chart" id="trendChart" role="img" aria-label="Gráfico de minutos ativos nos últimos 14 dias"></div>
-    </section>
-
-    <section class="card" id="valCard" aria-label="Sessão de validação"></section>
-
-    <section class="card">
-      <details>
-        <summary><h2>Validação e calibração</h2></summary>
-        <p class="warn">Os números deste painel ainda são <strong>provisórios</strong>. O formato interno do sensor foi decodificado por engenharia reversa e os limiares de repouso, leve e intenso precisam ser calibrados com vídeo do Simut antes de qualquer conclusão.</p>
-        <form class="settings" id="settingsForm">
-          <label>Taxa de amostragem (Hz)<input type="number" min="1" max="400" step="1" name="hz"></label>
-          <label>Janela de análise (s)<input type="number" min="5" max="300" step="5" name="epoch"></label>
-          <label>Limiar leve (mg)<input type="number" min="1" max="2000" step="1" name="tLight"></label>
-          <label>Limiar intenso (mg)<input type="number" min="1" max="4000" step="1" name="tVig"></label>
-          <label>Unidades por g<input type="number" min="1" max="4096" step="1" name="lsbPerG"></label>
-          <button class="btn" type="submit">Salvar e recalcular</button>
-        </form>
-        <div id="cloudPanel"></div>
-        <div class="actions">
-          <button class="btn" id="btnCsv">Exportar janelas (CSV)</button>
-          <label class="btn file">Importar .bin do Mac<input type="file" id="fileBin" accept=".bin" hidden></label>
-          <button class="btn danger ghost" id="btnClear">Apagar dados deste aparelho</button>
-        </div>
-      </details>
-    </section>
-
-    <section class="card">
-      <details>
-        <summary><h2>Diagnóstico</h2></summary>
-        <pre class="log" id="log"></pre>
-      </details>
-    </section>
-  </main>
-
-  <footer class="small muted">Os dados ficam neste navegador e, com a chave, na nuvem do Simut. Versão 10.</footer>
-
+    <nav class="bottombar" id="bottombar" aria-label="Seções"></nav>
+  </div>
+  <div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+  <noscript><p class="boot">O SIMUT precisa de JavaScript ligado.</p></noscript>
   <script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>
