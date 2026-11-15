@@ -127,3 +127,94 @@ export function mergeProfile(local = null, remote = null) {
   if (stamp(local) > stamp(remote)) return { profile: local, push: true };
   return { profile: stamp(remote) > stamp(local) ? remote : local, push: false };
 }
+
+// ---------- respostas do onboarding <-> animal ----------
+// As mesmas respostas servem para o onboarding e para editar o animal em Opções.
+
+export const SEX_LABEL = { macho: "Macho", femea: "Fêmea", "nao-informar": "Prefiro não informar" };
+export const ROUTINE = {
+  environment: { label: "Ambiente", options: [["casa-quintal", "Casa com quintal"], ["apartamento", "Apartamento"], ["rural", "Sítio ou área rural"], ["outro", "Outro"]] },
+  activity: { label: "Atividade", options: [["diario", "Passeia todo dia"], ["alguns-dias", "Passeia alguns dias na semana"], ["raro", "Raramente sai"], ["solto", "Vive solto"]] },
+  restPlace: { label: "Descanso", options: [["caminha", "Caminha própria"], ["cama-familia", "Cama ou sofá da família"], ["chao", "Chão"], ["varia", "Varia"]] },
+};
+export const routineLabel = (key, value) => (ROUTINE[key]?.options.find(([v]) => v === value) || [null, ""])[1];
+
+export const BREEDS = {
+  cao: ["Shih Tzu", "Yorkshire", "Poodle", "Lhasa Apso", "Spitz Alemão", "Golden Retriever", "Labrador", "Bulldog Francês", "Dachshund", "Border Collie"],
+  gato: ["Persa", "Siamês", "Maine Coon", "Ragdoll", "Angorá", "Sphynx", "British Shorthair", "Bengal", "Himalaio", "Exótico"],
+  outro: [],
+};
+
+// "12,5" ou "12.5" -> 12.5; vazio ou inválido -> null
+export function parseDecimal(v) {
+  const s = String(v ?? "").trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Respostas (rascunho) a partir de um animal já cadastrado.
+export function answersFromAnimal(a = {}) {
+  const out = { species: a.species || null, speciesOther: a.speciesOther || "", name: a.name || "" };
+  if (a.breed === "srd" || a.breed === "mestico") out.breedChoice = a.breed;
+  else if (a.breed === null) out.breedChoice = "nao-sei";
+  else out.breed = a.breed || "";
+  if (a.age === null) out.ageUnknown = true;
+  else if (a.age?.birthDate) { out.ageMode = "nasc"; out.birthDate = a.age.birthDate; }
+  else if (a.age && (a.age.years || a.age.months)) {
+    out.ageMode = "aprox";
+    if (a.age.years) { out.ageValue = String(a.age.years); out.ageUnit = "anos"; } else { out.ageValue = String(a.age.months); out.ageUnit = "meses"; }
+  }
+  if (a.weightKg === null) out.weightUnknown = true;
+  else if (Number.isFinite(a.weightKg)) out.weight = String(a.weightKg).replace(".", ",");
+  if (a.sex) out.sex = a.sex;
+  if (a.neutered === true) out.neutered = "sim";
+  else if (a.neutered === false) out.neutered = "nao";
+  else if (a.neutered === null) out.neutered = "nao-sei";
+  const r = a.routine || {};
+  for (const k of Object.keys(ROUTINE)) if (r[k]) out[k] = r[k];
+  return out;
+}
+
+// Animal a partir das respostas. base: animal existente (mantém id, sensores, calibração, createdAt).
+// Campos opcionais não respondidos ficam ausentes; "Não sei" vira null.
+export function animalFromAnswers(ans = {}, base = {}, now = Date.now()) {
+  const a = { ...base };
+  a.species = ans.species || base.species || "outro";
+  if (a.species === "outro" && String(ans.speciesOther || "").trim()) a.speciesOther = String(ans.speciesOther).trim().slice(0, 40);
+  else delete a.speciesOther;
+  a.name = String(ans.name || "").trim().slice(0, 60);
+
+  if (ans.breedChoice === "srd" || ans.breedChoice === "mestico") a.breed = ans.breedChoice;
+  else if (ans.breedChoice === "nao-sei") a.breed = null;
+  else if (String(ans.breed || "").trim()) a.breed = String(ans.breed).trim().slice(0, 60);
+  else delete a.breed;
+
+  const n = parseDecimal(ans.ageValue);
+  if (ans.ageUnknown) a.age = null;
+  else if (ans.ageMode === "nasc" && /^\d{4}-\d{2}-\d{2}$/.test(ans.birthDate || "")) a.age = { birthDate: ans.birthDate };
+  else if (ans.ageMode !== "nasc" && n !== null && n > 0) a.age = ans.ageUnit === "meses" ? { months: Math.round(n) } : { years: Math.round(n * 10) / 10 };
+  else delete a.age;
+
+  const w = parseDecimal(ans.weight);
+  if (ans.weightUnknown) a.weightKg = null;
+  else if (w !== null && w > 0) a.weightKg = Math.round(w * 10) / 10;
+  else delete a.weightKg;
+
+  if (ans.sex) a.sex = ans.sex; else delete a.sex;
+  if (ans.sex === "macho" || ans.sex === "femea") {
+    if (ans.neutered === "sim") a.neutered = true;
+    else if (ans.neutered === "nao") a.neutered = false;
+    else if (ans.neutered === "nao-sei") a.neutered = null;
+    else delete a.neutered;
+  } else delete a.neutered;
+
+  const routine = {};
+  for (const k of Object.keys(ROUTINE)) if (ans[k]) routine[k] = ans[k];
+  if (Object.keys(routine).length) a.routine = routine; else delete a.routine;
+
+  a.sensors = Array.isArray(base.sensors) ? base.sensors : [];
+  a.createdAt = base.createdAt || now;
+  a.updatedAt = now;
+  return a;
+}

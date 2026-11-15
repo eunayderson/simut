@@ -239,7 +239,7 @@ on((reason) => {
   migrate();
   router = startRouter({
     view, resolve, onRoute,
-    guardCtx: () => ({ profile: state.profile, animals: state.animals, draft: loadDraft(), onboarding: false }),
+    guardCtx: () => ({ profile: state.profile, animals: state.animals, draft: loadDraft(), onboarding: true }),
     onError: (e) => { log(`erro na página: ${e.message}`); showError(e.message); console.error(e); },
   });
   router.start();

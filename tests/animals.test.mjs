@@ -124,3 +124,65 @@ test("ageLabel e animalSubtitle", () => {
   assert.equal(animalSubtitle({ species: "cao", breed: "Shih Tzu", age: { years: 12 } }, now), "Cão, Shih Tzu, 12 anos");
   assert.equal(animalSubtitle({ species: "outro", speciesOther: "Coelho", breed: "srd" }, now), "Coelho, SRD");
 });
+
+import { animalFromAnswers, answersFromAnimal, parseDecimal, routineLabel } from "../js/animals.js";
+
+test("parseDecimal aceita vírgula e rejeita vazio", () => {
+  assert.equal(parseDecimal("12,5"), 12.5);
+  assert.equal(parseDecimal(" 7.25 "), 7.25);
+  assert.equal(parseDecimal(""), null);
+  assert.equal(parseDecimal("abc"), null);
+});
+
+test("animalFromAnswers: só o obrigatório (espécie e nome); opcionais ficam ausentes", () => {
+  const a = animalFromAnswers({ species: "gato", name: " Mia " }, { id: "a-1" }, NOW);
+  assert.equal(a.id, "a-1");
+  assert.equal(a.species, "gato");
+  assert.equal(a.name, "Mia");
+  for (const k of ["breed", "age", "weightKg", "sex", "neutered", "routine", "speciesOther"]) assert.equal(k in a, false, k);
+  assert.deepEqual(a.sensors, []);
+  assert.equal(a.createdAt, NOW);
+  assert.equal(a.updatedAt, NOW);
+});
+
+test("animalFromAnswers: Não sei vira null (diferente de não respondido)", () => {
+  const a = animalFromAnswers({ species: "cao", name: "Rex", breedChoice: "nao-sei", ageUnknown: true, weightUnknown: true, sex: "macho", neutered: "nao-sei" }, {}, NOW);
+  assert.equal(a.breed, null);
+  assert.equal(a.age, null);
+  assert.equal(a.weightKg, null);
+  assert.equal(a.neutered, null);
+});
+
+test("animalFromAnswers: raça, idade aproximada ou por data, peso decimal, sexo e castração", () => {
+  const a = animalFromAnswers({ species: "cao", name: "Rex", breedChoice: "srd", ageMode: "aprox", ageValue: "8", ageUnit: "meses", weight: "4,35", sex: "femea", neutered: "sim", environment: "apartamento", activity: "diario" }, {}, NOW);
+  assert.equal(a.breed, "srd");
+  assert.deepEqual(a.age, { months: 8 });
+  assert.equal(a.weightKg, 4.4);
+  assert.equal(a.sex, "femea");
+  assert.equal(a.neutered, true);
+  assert.deepEqual(a.routine, { environment: "apartamento", activity: "diario" });
+  const b = animalFromAnswers({ species: "outro", speciesOther: "Coelho", name: "Bolt", ageMode: "nasc", birthDate: "2020-05-01", sex: "nao-informar", neutered: "sim" }, {}, NOW);
+  assert.equal(b.speciesOther, "Coelho");
+  assert.deepEqual(b.age, { birthDate: "2020-05-01" });
+  assert.equal("neutered" in b, false);
+});
+
+test("animalFromAnswers mantém sensores, calibração e criação do animal existente", () => {
+  const base = { ...LEGACY_ANIMAL, calibration: { tLight: 50 }, createdAt: 123 };
+  const a = animalFromAnswers({ ...answersFromAnimal(base), weight: "6,2" }, base, NOW);
+  assert.equal(a.id, "simut");
+  assert.deepEqual(a.sensors, LEGACY_ANIMAL.sensors);
+  assert.deepEqual(a.calibration, { tLight: 50 });
+  assert.equal(a.createdAt, 123);
+  assert.equal(a.breed, "Shih Tzu");
+  assert.deepEqual(a.age, { years: 12 });
+  assert.equal(a.weightKg, 6.2);
+  assert.equal(a.sex, "macho");
+});
+
+test("answersFromAnimal e animalFromAnswers são inversas nos campos do onboarding", () => {
+  const orig = { id: "a-2", species: "gato", name: "Mia", breed: null, age: { birthDate: "2019-02-03" }, weightKg: 3.5, sex: "femea", neutered: false, routine: { restPlace: "chao" }, sensors: [], createdAt: 1 };
+  const back = animalFromAnswers(answersFromAnimal(orig), orig, NOW);
+  assert.deepEqual({ ...back, updatedAt: 0 }, { ...orig, updatedAt: 0 });
+  assert.equal(routineLabel("restPlace", "chao"), "Chão");
+});
