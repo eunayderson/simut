@@ -5,6 +5,7 @@
 //   state,          // { cloudKey }
 //   sync(),         // sincroniza tudo com a nuvem (definido pelo app)
 //   statusEls,      // elementos extras que mostram o estado (ex.: #kvCloud)
+//   onForget(),     // chamado depois de desconectar este aparelho
 //   log, ui: { confirm, alert, prompt } (padrão: diálogos nativos)
 // }
 
@@ -70,7 +71,7 @@ export function mount(el, ctx) {
   $("cloudNow").addEventListener("click", () => ctx.sync?.());
   $("cloudForget").addEventListener("click", async () => {
     if (!(await ui.confirm("Desconectar este aparelho da nuvem? Os dados continuam na nuvem e neste navegador."))) return;
-    forgetKey(); state.cloudKey = null; setStatus("Desligada");
+    forgetKey(); state.cloudKey = null; setStatus("Desligada"); ctx.onForget?.();
   });
 
   setStatus(last.text, last.ok);

@@ -198,3 +198,10 @@ export async function mergeOnboarding(key, localEvents = []) {
   await fs.setDoc(ref, clean({ events: merged, at: Date.now() }));
   return merged;
 }
+
+// Só lê os eventos do onboarding guardados na nuvem (para a tabela de métricas em Opções).
+export async function pullOnboarding(key) {
+  await init();
+  const snap = await fs.getDoc(fs.doc(db, "dogs", key, "meta", "onboarding"));
+  return snap.exists() ? snap.data().events || [] : [];
+}

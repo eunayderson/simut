@@ -335,3 +335,18 @@
   .table--cards td::before { font-family: var(--font-sans); font-variant-numeric: normal; }
   .card .table-wrap { margin: 0; width: 100%; }
 }
+
+/* ---------- Opções ---------- */
+.inline-form { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-2) var(--sp-3); }
+.inline-form .field { flex: 1 1 220px; }
+.inline-form > .btn { margin-top: 26px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: var(--sp-3) var(--sp-4); align-items: start; }
+.animal-form { display: grid; gap: var(--sp-5); }
+.animal-form .error { margin: 0; color: var(--color-error-text); font-size: var(--fs-sm); }
+.animal-form .error:empty { display: none; }
+.routine-set { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: var(--sp-3); justify-items: start; }
+.routine-set legend { padding: 0; margin-bottom: var(--sp-2); font-weight: var(--fw-semibold); color: var(--color-teal); font-size: var(--fs-sm); }
+.routine-set .form-grid { width: 100%; }
+.archive-row { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--color-border); }
+.metrics-grid { display: grid; gap: var(--sp-4); }
+.metrics-grid .table caption { font-weight: var(--fw-semibold); color: var(--color-text); }

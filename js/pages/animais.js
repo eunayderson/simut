@@ -60,7 +60,8 @@ export function mount(el, ctx) {
     const archivedCount = state.animals.filter((a) => a.archived).length;
     const list = state.animals.filter((a) => showArchived || !a.archived);
     // último usado primeiro; os demais na ordem de cadastro
-    list.sort((a, b) => (b.id === lastId) - (a.id === lastId));
+    // arquivados vão para o fim
+    list.sort((a, b) => (!!a.archived - !!b.archived) || ((b.id === lastId) - (a.id === lastId)));
     const firstActive = list.find((a) => !a.archived);
     optLink.href = firstActive ? animalPath(firstActive.id, "opcoes") : "#/animais";
     optLink.hidden = !firstActive;
