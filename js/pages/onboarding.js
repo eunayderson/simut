@@ -413,11 +413,12 @@ export function mount(el, ctx) {
   });
 
   function progress() {
-    const steps = [1, 2, 3, 4];
-    const label = `Etapa ${draft.step} de 4: ${STEP_NAME[draft.step]}`;
+    // "adicionar" pula a etapa 1 (a pessoa já está cadastrada): mostra 3 etapas
+    const steps = flow === "adicionar" ? [2, 3, 4] : [1, 2, 3, 4];
+    const label = `Etapa ${steps.indexOf(draft.step) + 1} de ${steps.length}: ${STEP_NAME[draft.step]}`;
     return h("div", { class: "ob-progress" },
       h("ol", { class: "steps", "aria-hidden": "true" }, steps.map((s) => {
-        const isDone = s < draft.step || (flow === "legado" && draft.step === 4) || (flow === "adicionar" && s === 1);
+        const isDone = s < draft.step || (flow === "legado" && draft.step === 4);
         return h("li", { class: s === draft.step ? "current" : isDone ? "done" : "" }, h("span", { class: "dot" }));
       })),
       h("p", { class: "steps-label" }, label));
