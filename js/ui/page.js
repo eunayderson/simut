@@ -17,7 +17,7 @@ export function card({ title, sub = "", origin = null, help = null, tools = null
   const o = typeof origin === "string" ? { kind: origin } : origin;
   const head = title ? h("div", { class: "card-head" },
     h("div", { class: "card-title" },
-      h(level, {}, title, help ? helpButton({ align: "left", ...help }) : null),
+      h(level, {}, title, help ? helpButton(help) : null),
       sub ? h("p", { class: "card-sub" }, sub) : null),
     (o || tools) ? h("div", { class: "card-tools" }, tools, o ? badge(o.kind, { detail: o.detail || "", label: o.label || null }) : null) : null) : null;
   return h("section", { class: `card span-${span}${cls ? ` ${cls}` : ""}`, id }, head, body);

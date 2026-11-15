@@ -2,6 +2,7 @@
 // O selo sempre tem texto e ícone, nunca só cor.
 
 import { h, icon, uniqueId } from "./dom.js?v=10";
+import { placePopover } from "./place.js?v=10";
 
 export const ORIGINS = {
   observado: {
@@ -32,6 +33,20 @@ export const ORIGINS = {
 
 let openPop = null;
 
+// Popover em position: fixed, preso à tela (ui/place.js): nunca sai pela lateral nem por baixo.
+function position() {
+  if (!openPop) return;
+  const { btn, pop } = openPop;
+  const b = btn.getBoundingClientRect();
+  const vp = { width: document.documentElement.clientWidth, height: window.innerHeight };
+  const p = placePopover(b, { width: pop.offsetWidth, height: pop.offsetHeight }, vp);
+  pop.style.left = `${p.left}px`;
+  pop.style.top = `${p.top}px`;
+  pop.classList.toggle("above", p.above);
+}
+window.addEventListener("resize", position);
+window.addEventListener("scroll", position, { passive: true, capture: true });
+
 function closeOpen(restoreFocus = false) {
   if (!openPop) return;
   const { btn, pop } = openPop;
@@ -49,11 +64,11 @@ document.addEventListener("keydown", (e) => {
 });
 
 // Botão "?" com popover. content: texto, nó ou lista de parágrafos.
-// helpButton({ label: "O que é um actograma?", title, content, align: "right"|"left" })
-export function helpButton({ label, title = "", content, align = "right" }) {
+// helpButton({ label: "O que é um actograma?", title, content })
+export function helpButton({ label, title = "", content }) {
   const popId = uniqueId("pop");
   const paras = Array.isArray(content) ? content : [content];
-  const pop = h("div", { class: `popover${align === "left" ? " align-left" : ""}`, id: popId, role: "note", hidden: true },
+  const pop = h("div", { class: "popover", id: popId, role: "note", hidden: true },
     title ? h("p", { class: "popover-title" }, title) : null,
     paras.map((p) => (p instanceof Node ? p : h("p", {}, p))),
   );
@@ -66,12 +81,8 @@ export function helpButton({ label, title = "", content, align = "right" }) {
     if (!isOpen) {
       pop.hidden = false;
       btn.setAttribute("aria-expanded", "true");
-      // mantém o popover dentro da tela (celular)
-      pop.classList.toggle("align-left", align === "left");
-      const r = pop.getBoundingClientRect();
-      if (r.left < 8) pop.classList.add("align-left");
-      else if (r.right > window.innerWidth - 8) pop.classList.remove("align-left");
       openPop = { btn, pop, wrap };
+      position();
     }
   });
   return wrap;
