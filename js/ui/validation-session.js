@@ -10,8 +10,8 @@
 //   log, ui: { confirm, alert, prompt } (padrão: diálogos nativos)
 // }
 
-import { STATES, stateById, saveMarks, exportMarks, importMarks, analyze, marksOf, markKey, markAnimal } from "../validation.js?v=10";
-import { mergeMarks, replaceMarks } from "../cloud.js?v=10";
+import { STATES, stateById, saveMarks, exportMarks, importMarks, analyze, marksOf, markKey, undoLast, clearMarksOf, mergeTombstones, saveDeleted, mergeMarkLists } from "../validation.js?v=10";
+import { syncMarks } from "../cloud.js?v=10";
 import { escapeHtml } from "./dom.js?v=10";
 
 const CLS_LABEL = { rest: "Repouso", light: "Leve", vig: "Intenso" };
@@ -49,8 +49,24 @@ export function mount(el, ctx) {
 
   const mine = () => marksOf(state.marks, animalId);
   const lastMark = () => { const m = mine(); return m[m.length - 1]; };
-  const cloudMerge = (what) => { if (state.cloudKey) mergeMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem (${what}): ${e.message}`)); };
-  const cloudReplace = () => { if (state.cloudKey) replaceMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem (marcações): ${e.message}`)); };
+  // Nuvem: o app junta com o remoto e com o estado atual (ctx.onMarksChanged). Sem o app, faz direto.
+  const cloudMerge = (what) => {
+    if (ctx.onMarksChanged) { ctx.onMarksChanged(); return; }
+    if (!state.cloudKey) return;
+    syncMarks(state.cloudKey, state.marks, state.marksDeleted || []).then((r) => {
+      state.marksDeleted = mergeTombstones(state.marksDeleted || [], r.deleted);
+      saveDeleted(state.marksDeleted);
+      state.marks.splice(0, state.marks.length, ...mergeMarkLists(r.marks, state.marks, { deleted: state.marksDeleted }));
+      saveMarks(state.marks); render();
+    }).catch((e) => log(`nuvem (${what}): ${e.message}`));
+  };
+  // Desfazer e limpar: tira só as marcações visadas e grava tombstones (não voltam no próximo merge).
+  function removeMarks({ marks, tombstones }) {
+    state.marks.splice(0, state.marks.length, ...marks);
+    state.marksDeleted = mergeTombstones(state.marksDeleted || [], tombstones);
+    saveMarks(state.marks); saveDeleted(state.marksDeleted);
+    render(); cloudMerge("marcações");
+  }
 
   function addMark(id) {
     state.marks.push({ t: Date.now(), s: id, a: animalId });
@@ -118,18 +134,11 @@ export function mount(el, ctx) {
   }
 
   $("valEnd").addEventListener("click", () => { const m = lastMark(); if (m && m.s !== "fim") addMark("fim"); });
-  $("valUndo").addEventListener("click", () => {
-    for (let i = state.marks.length - 1; i >= 0; i--) {
-      if (markAnimal(state.marks[i]) === animalId) { state.marks.splice(i, 1); break; }
-    }
-    saveMarks(state.marks); render(); cloudReplace();
-  });
+  $("valUndo").addEventListener("click", () => removeMarks(undoLast(state.marks, animalId)));
   $("valClear").addEventListener("click", async () => {
     const who = ctx.animalName ? ` de ${ctx.animalName}` : "";
-    if (!(await ui.confirm(`Apagar todas as marcações de validação${who} deste aparelho?`))) return;
-    const keep = state.marks.filter((m) => markAnimal(m) !== animalId);
-    state.marks.splice(0, state.marks.length, ...keep);
-    saveMarks(state.marks); render(); cloudReplace();
+    if (!(await ui.confirm(`Apagar todas as marcações de validação${who}?`))) return;
+    removeMarks(clearMarksOf(state.marks, animalId));
   });
   $("valCopy").addEventListener("click", async () => {
     const code = exportMarks(mine());

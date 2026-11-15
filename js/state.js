@@ -5,7 +5,7 @@
 //         "sensor" (sincronização em andamento), "settings" (parâmetros de análise)
 
 import { loadSettings, loadAnimals, loadProfile, saveAnimals, saveProfile, getLastSync } from "./store.js?v=10";
-import { loadMarks } from "./validation.js?v=10";
+import { loadMarks, loadDeleted } from "./validation.js?v=10";
 import { findAnimal, syncsFor, effectiveSettings } from "./animals.js?v=10";
 import { buildEpochs } from "./analysis.js?v=10";
 
@@ -13,6 +13,7 @@ export const state = {
   settings: loadSettings(),   // globais (propriedades do sensor + limiares padrão)
   syncs: [],                  // todos os downloads deste aparelho (todos os animais)
   marks: loadMarks(),         // todas as marcações de validação (todos os animais)
+  marksDeleted: loadDeleted(), // tombstones das marcações desfeitas ou limpas ({k, at})
   animals: loadAnimals(),
   profile: loadProfile(),
   cloudKey: null,

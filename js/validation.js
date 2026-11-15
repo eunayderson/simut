@@ -107,16 +107,58 @@ export const markKey = (m) => `${Math.round(m.t / 1000)}:${m.s}:${markAnimal(m)}
 
 // Junta listas de marcações sem repetir (markKey), em ordem de tempo.
 // Mantém o campo a só quando existe: marcações antigas continuam sem ele.
+// Último argumento opcional { deleted: [{k, at}] }: tombstones (marcações desfeitas ou limpas)
+// que não voltam, venham de onde vierem (outro aparelho, aba antiga).
 export function mergeMarkLists(...lists) {
+  const opts = lists.length && lists.at(-1) && !Array.isArray(lists.at(-1)) ? lists.pop() : {};
+  const gone = new Set((opts.deleted || []).map((d) => d?.k));
   const all = lists.flat().filter((m) => m && Number.isFinite(m.t) && m.s).sort((a, b) => a.t - b.t);
   const seen = new Set(), out = [];
   for (const m of all) {
     const k = markKey(m);
-    if (seen.has(k)) continue;
+    if (seen.has(k) || gone.has(k)) continue;
     seen.add(k);
     out.push(m.a ? { t: m.t, s: m.s, a: m.a } : { t: m.t, s: m.s });
   }
   return out;
+}
+
+// Tombstones: { k: markKey, at: ms }. União por chave (fica o mais antigo).
+export function mergeTombstones(...lists) {
+  const byK = new Map();
+  for (const d of lists.flat()) {
+    if (!d?.k) continue;
+    const prev = byK.get(d.k);
+    if (!prev || (Number(d.at) || 0) < (Number(prev.at) || 0)) byK.set(d.k, { k: d.k, at: Number(d.at) || 0 });
+  }
+  return [...byK.values()].sort((a, b) => a.at - b.at || a.k.localeCompare(b.k));
+}
+
+// Desfaz a última marcação do animal. Devolve { marks (nova lista), tombstones }.
+export function undoLast(marks, animalId, now = Date.now()) {
+  for (let i = marks.length - 1; i >= 0; i--) {
+    if (markAnimal(marks[i]) !== animalId) continue;
+    return { marks: [...marks.slice(0, i), ...marks.slice(i + 1)], tombstones: [{ k: markKey(marks[i]), at: now }] };
+  }
+  return { marks: marks.slice(), tombstones: [] };
+}
+
+// Limpa as marcações do animal (as dos outros ficam). Devolve { marks, tombstones }.
+export function clearMarksOf(marks, animalId, now = Date.now()) {
+  const keep = [], tombstones = [];
+  for (const m of marks) {
+    if (markAnimal(m) === animalId) tombstones.push({ k: markKey(m), at: now });
+    else keep.push(m);
+  }
+  return { marks: keep, tombstones };
+}
+
+const DELETED_KEY = "simut.marksDeleted";
+export function loadDeleted() {
+  try { const v = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+export function saveDeleted(list) {
+  try { localStorage.setItem(DELETED_KEY, JSON.stringify(list)); } catch { /* modo privado */ }
 }
 
 // Sessões de validação concluídas: cada marcação "fim" fecha uma sessão (as marcações

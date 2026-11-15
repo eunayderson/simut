@@ -2,14 +2,15 @@
 // O sync da nuvem leva segundos; o que a pessoa fizer nesse meio tempo (marcar, desfazer,
 // editar, adicionar animal) está em "current" e não pode ser revertido pelo resultado antigo.
 
-import { mergeMarkLists } from "./validation.js?v=10";
+import { mergeMarkLists, mergeTombstones } from "./validation.js?v=10";
 import { mergeAnimals, mergeProfile } from "./animals.js?v=10";
 import { mergeEvents } from "./metrics.js?v=10";
 
 // current: estado atual (depois do await). fetched: o que a nuvem devolveu.
 // toPush e pushProfile dizem o que mudou aqui no meio e ainda precisa subir (próxima rodada).
 export function reconcile(current, fetched) {
-  const out = { marks: mergeMarkLists(fetched.marks || [], current.marks || []) };
+  const deleted = mergeTombstones(current.deleted || [], fetched.deleted || []);
+  const out = { deleted, marks: mergeMarkLists(fetched.marks || [], current.marks || [], { deleted }) };
   if ("animals" in fetched) {
     const a = mergeAnimals(current.animals || [], fetched.animals || []);
     out.animals = a.animals;

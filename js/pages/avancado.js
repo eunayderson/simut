@@ -110,7 +110,7 @@ export function mount(el, ctx) {
   });
 
   const validation = mountValidation(valHost, {
-    state, animalId: a0.id, animalName: a0.name, log, ui: modalUi,
+    state, animalId: a0.id, animalName: a0.name, log, ui: modalUi, onMarksChanged: app.cloudMarks,
     getSettings: () => settingsFor(animal()),
     onApplyThresholds: ({ tLight, tVig }) => { app.saveAnimal({ ...animal(), calibration: { tLight, tVig } }); fill(); },
   });

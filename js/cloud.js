@@ -4,12 +4,13 @@
 //   dogs/{chave}/syncs/{id}            -> { endAt, source, packets, chunks, sensor, at, animalId?, sensorName? }
 //   dogs/{chave}/syncs/{id}/chunks/{i} -> { data: Bytes }  ([u16 tamanho][pacote] repetido)
 //   dogs/{chave}/meta/marks            -> { list: [{t, s, a?}], at }
+//   dogs/{chave}/meta/marksDeleted     -> { list: [{k: "seg:estado:animal", at}], at }   (marcações desfeitas ou limpas)
 //   dogs/{chave}/meta/profile          -> { name, createdAt, updatedAt, onboardingDone, onboardingFlow }
 //   dogs/{chave}/meta/onboarding       -> { events: [...], at }   (junta por id de evento, máximo 2000)
 //   dogs/{chave}/animals/{animalId}    -> animal completo (ver animals.js)
 // Documentos antigos nunca são reescritos: syncs só sobem quando não existem lá.
 
-import { mergeMarkLists } from "./validation.js?v=10";
+import { mergeMarkLists, mergeTombstones } from "./validation.js?v=10";
 import { mergeAnimals, mergeProfile } from "./animals.js?v=10";
 import { mergeEvents } from "./metrics.js?v=10";
 
@@ -127,19 +128,33 @@ export async function syncAll(key, localSyncs, log = () => {}) {
   return { up, down, total: remote.size + up };
 }
 
-// Junta as marcações daqui com as de lá (sem repetir segundo, estado e animal) e grava a lista.
-export async function mergeMarks(key, localMarks) {
-  await init();
-  const ref = fs.doc(db, "dogs", key, "meta", "marks");
-  const snap = await fs.getDoc(ref);
-  const merged = mergeMarkLists(snap.exists() ? snap.data().list || [] : [], localMarks);
-  await fs.setDoc(ref, { list: merged, at: Date.now() });
-  return merged;
+// Marcações: junta as daqui com as de lá (sem repetir segundo, estado e animal), respeitando
+// os tombstones (meta/marksDeleted), e grava. Ler, juntar e gravar numa transação por documento:
+// nada de outro aparelho é apagado, e o que foi desfeito não volta. Devolve { marks, deleted }.
+async function mergeDoc(ref, fn) {
+  return fs.runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const cur = snap.exists() ? snap.data() : null;
+    const next = fn(cur);
+    if (next.write) tx.set(ref, next.doc);
+    return next.value;
+  });
 }
+const sameList = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-export async function replaceMarks(key, marks) {
+export async function syncMarks(key, localMarks = [], localDeleted = []) {
   await init();
-  await fs.setDoc(fs.doc(db, "dogs", key, "meta", "marks"), { list: marks, at: Date.now() });
+  const deleted = await mergeDoc(fs.doc(db, "dogs", key, "meta", "marksDeleted"), (cur) => {
+    const remote = cur?.list || [];
+    const list = mergeTombstones(remote, localDeleted);
+    return { value: list, write: !sameList(list, mergeTombstones(remote)), doc: { list, at: Date.now() } };
+  });
+  const marks = await mergeDoc(fs.doc(db, "dogs", key, "meta", "marks"), (cur) => {
+    const remote = cur?.list || [];
+    const list = mergeMarkLists(remote, localMarks, { deleted });
+    return { value: list, write: !sameList(list, remote), doc: { list, at: Date.now() } };
+  });
+  return { marks, deleted };
 }
 
 // ---------- perfil, animais e métricas do onboarding ----------

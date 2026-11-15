@@ -7,9 +7,9 @@ import { getSensor, run as runSync } from "./sync.js?v=10";
 import { saveSync, loadSyncs, clearAll, saveSettings, migrateLastSync, clearLastSyncs, saveLastAnimal, loadDraft } from "./store.js?v=10";
 import { migrateLocal, mergeAnimals, mergeProfile, findAnimal, sensorDecision, associateSensor, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
-import { saveMarks } from "./validation.js?v=10";
+import { saveMarks, saveDeleted } from "./validation.js?v=10";
 import { reconcile, coalesce } from "./cloud-sync.js?v=10";
-import { getKey, syncAll, mergeMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
+import { getKey, syncAll, syncMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
 import { state, on, emit, recompute, setAnimal, currentAnimal, upsertAnimal, setAnimals, setProfile } from "./state.js?v=10";
 import { startRouter, focusHeading, parse, guard } from "./router.js?v=10";
 import { createNav } from "./ui/nav.js?v=10";
@@ -180,6 +180,22 @@ function cloudUi(text, ok = null) {
   state.cloud = { text, ok };
   emit("cloud");
 }
+// Marcações vindas da nuvem: junta de novo com o estado atual (marcação feita ou desfeita
+// durante o await não some nem volta).
+function applyMarks(r) {
+  const j = reconcile({ marks: state.marks, deleted: state.marksDeleted }, r);
+  state.marksDeleted = j.deleted;
+  saveDeleted(j.deleted);
+  state.marks.splice(0, state.marks.length, ...j.marks);
+  saveMarks(state.marks);
+}
+// Só as marcações (sessão de validação): marcar, desfazer, limpar e colar.
+const cloudMarks = coalesce(async () => {
+  if (!state.cloudKey) return;
+  try { applyMarks(await syncMarks(state.cloudKey, state.marks, state.marksDeleted)); emit("data"); }
+  catch (e) { log(`nuvem (marcações): ${e.message}`); }
+});
+
 // Fila de 1 (cloud-sync.coalesce): pedido feito durante outro sync roda de novo logo depois.
 // Depois de cada await, o resultado é juntado de novo com o estado atual (cloud-sync.reconcile):
 // o que a pessoa fez no meio (marcar, editar, adicionar animal) não é revertido.
@@ -190,10 +206,7 @@ const cloudSync = coalesce(async () => {
   try {
     const r = await syncAll(state.cloudKey, state.syncs, log);
     for (const s of r.down) await saveSync(s);
-    const marks = await mergeMarks(state.cloudKey, state.marks);
-    // junta de novo com o estado atual: marcação feita durante o await não some
-    state.marks.splice(0, state.marks.length, ...reconcile({ marks: state.marks }, { marks }).marks);
-    saveMarks(state.marks);
+    applyMarks(await syncMarks(state.cloudKey, state.marks, state.marksDeleted));
     const pa = await syncProfileAndAnimals(state.cloudKey, { profile: state.profile, animals: state.animals }, log);
     const j = reconcile({ animals: state.animals, profile: state.profile }, { animals: pa.animals, profile: pa.profile });
     setAnimals(j.animals);
@@ -272,7 +285,7 @@ const nav = createNav();
 const PAGES = {
   "visao-geral": visaoGeralPage, avancado: avancadoPage, sensor: sensorPage, dados: dadosPage, opcoes: opcoesPage,
 };
-const app = { syncSensor, reload, importBin, clearLocal, updateSettings, saveAnimal, saveProfile, cloudSync };
+const app = { syncSensor, reload, importBin, clearLocal, updateSettings, saveAnimal, saveProfile, cloudSync, cloudMarks };
 
 function resolve(route) {
   const base = { state, route, navigate, log, app };
