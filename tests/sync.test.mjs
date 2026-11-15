@@ -145,7 +145,7 @@ test("run: trocar de animal no modal regrava o mesmo id com o outro animal", asy
   assert.equal(saved[1].animalId, "simut");
   assert.equal(r.animalId, "simut");
   assert.equal(r.reassigned, true);
-  assert.deepEqual(last, ["a-2", "simut"]);
+  assert.deepEqual(last, ["simut"]); // o animal anterior não fica com "último download" fantasma
 });
 
 test("bluetoothErrorText: erros do navegador viram frases em português", async () => {

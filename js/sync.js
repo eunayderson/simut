@@ -90,8 +90,7 @@ export async function run({
       sensor: { info: snap.info, status: snap.status, clock: clockBefore ? clockBefore.getTime() : null } };
     if (animalId) sync.animalId = animalId;
     if (deviceName) sync.sensorName = deviceName;
-    await saveSync(sync);
-    if (animalId) setLastSync(animalId, now());
+    await saveSync(sync); // o sync salvo já conta como último download do animal (state.lastDownload)
     const text = resultText(res);
     onProgress({ pct: 100, text });
     disconnect();
@@ -105,8 +104,8 @@ export async function run({
     if (reassigned) {
       sync.animalId = target;
       await saveSync(sync);
-      setLastSync(target, now());
     }
+    if (target) setLastSync(target, now());
     return { sync, packets: res.packets, bad: res.bad, expected: res.expected, interrupted: res.interrupted, deviceName, animalId: target, previousAnimalId: animalId, reassigned, text };
   } catch (e) {
     log(`erro na sincronização: ${e.message}`);
