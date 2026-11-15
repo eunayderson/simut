@@ -19,10 +19,10 @@ const KEY_STORE = "simut.cloudKey";
 let fs = null, db = null;
 
 export function getKey() {
-  const m = location.hash.match(/k=([A-Za-z0-9_-]{30,})/);
+  const m = location.hash.match(/k=([A-Za-z0-9_-]{30,})/) || location.search.match(/[?&]k=([A-Za-z0-9_-]{30,})/);
   if (m) {
     try { localStorage.setItem(KEY_STORE, m[1]); } catch { /* ignore */ }
-    history.replaceState(null, "", location.pathname + location.search);
+    history.replaceState(null, "", location.pathname);
     return m[1];
   }
   try { return localStorage.getItem(KEY_STORE); } catch { return null; }

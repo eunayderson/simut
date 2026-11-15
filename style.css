@@ -204,3 +204,5 @@ footer { max-width: 920px; margin: 20px auto 0; text-align: center; }
 #kvCloud[data-ok="true"] { color: var(--ok); }
 #kvCloud[data-ok="false"] { color: var(--vig); }
 .key-input { flex: 1 1 220px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; }
+
+.err-banner { max-width: 920px; margin: 0 auto 12px; background: var(--warn-bg); color: var(--warn-ink); padding: 10px 14px; border-radius: 12px; font-weight: 600; }

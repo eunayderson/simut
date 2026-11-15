@@ -1,11 +1,20 @@
-import { PersonoSensor, bluetoothSupport, hex } from "./ble.js";
-import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js";
-import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js";
-import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js";
-import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js";
+import { PersonoSensor, bluetoothSupport, hex } from "./ble.js?v=8";
+import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js?v=8";
+import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=8";
+import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js?v=8";
+import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js?v=8";
 
 const $ = (id) => document.getElementById(id);
+export const VERSION = "8";
 const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now(), marks: loadMarks(), cloudKey: getKey(), cloudBusy: false };
+
+// ---------- erros visíveis ----------
+function showError(msg) {
+  const b = document.getElementById("errBanner");
+  if (b) { b.hidden = false; b.textContent = `Erro: ${msg}`; }
+}
+window.addEventListener("error", (e) => showError(e.message));
+window.addEventListener("unhandledrejection", (e) => showError(e.reason?.message || String(e.reason)));
 
 // ---------- log ----------
 const logLines = [];
@@ -417,7 +426,7 @@ async function cloudSync() {
 }
 $("cloudConnect").addEventListener("click", () => {
   const k = $("cloudKeyInput").value.trim();
-  if (!/^[A-Za-z0-9_-]{30,}$/.test(k)) { alert("Chave inválida. Ela tem pelo menos 30 letras, números, - ou _."); return; }
+  if (!/^[A-Za-z0-9_-]{30,}$/.test(k)) { cloudUi(`Chave inválida (${k.length} caracteres). Cole de novo, sem espaços.`, false); return; }
   setKey(k); state.cloudKey = k; $("cloudKeyInput").value = ""; cloudSync();
 });
 $("cloudLink").addEventListener("click", async () => {

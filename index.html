@@ -9,7 +9,7 @@
   <link rel="icon" href="img/simut.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="img/simut.svg">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
   <header class="hero">
@@ -21,6 +21,7 @@
     </div>
   </header>
 
+  <p class="err-banner" id="errBanner" hidden></p>
   <main>
     <section class="card" id="sensorCard">
       <div class="card-head">
@@ -146,8 +147,8 @@
     </section>
   </main>
 
-  <footer class="small muted">Os dados ficam só neste navegador. Nada é enviado para servidor.</footer>
+  <footer class="small muted">Os dados ficam neste navegador e, com a chave, na nuvem do Simut. Versão 8.</footer>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>
