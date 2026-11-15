@@ -91,3 +91,13 @@ Dois downloads reais (14/11 e 15/11) cobriram exatamente os endereços `0x000000
 Decodificando: cerca de 41 mil amostras por download. Com 32 Hz, isso é **cerca de 21 minutos**. Contando o marcador `58 00` como 1 por segundo (mediana de 25 amostras entre marcadores), dá **20 a 26 minutos**. As duas estimativas concordam: no modo atual, o `40 00` entrega só os **últimos ~20 a 25 minutos** de movimento bruto (memória circular de 128 KB).
 
 Hipótese a testar: o parâmetro do `40` selecionaria outras regiões da memória (`40 01`, `40 02`...), ou outro comando/configuração ativaria um modo resumido (contagens por minuto) que cobre dias.
+
+## Identificação do hardware (2026-11-15, pela etiqueta)
+
+Etiqueta traseira: **Model: Persono Tracker 01**, **ANATEL 01418-21-12794**, **FCC ID 2ACQR-EMBP0**, **IP67**. MAC impresso na frente: `80:65:59:81:54:CC`.
+
+- O código de fabricante `2ACQR` na FCC pertence à **EM Microelectronic-Marin SA** (Suíça, grupo Swatch). `EMBP0` é a família de beacons com sensor da EM (EMBP00/EMBP01).
+- Segundo o datasheet do EMBP01, a plataforma usa o SoC **EM9304** e o acelerômetro **ST LIS2DWL**. Isso substitui a hipótese anterior de chip Dialog/Renesas. A pilha BLE "ALPWISE" do serviço `7001` é a usada pela EM.
+- Os beacons irmãos (EMBC22) usam pilha **CR2032 de 225 mAh** (Renata). A carcaça do Persono é selada (IP67); a pilha provavelmente não é trocável pelo usuário.
+- A família tem um **Warehouse Mode** (modo depósito) de consumo mínimo, com cerca de 1 ano de armazenamento, saindo dele por evento de configuração.
+- O LIS2DWL trabalha com taxas fixas (1,6; 12,5; 25; 50; 100 Hz...). A mediana de **25 amostras entre marcadores `58 00`** sugere que o sensor grava a **25 Hz**, com um marcador por segundo. Ainda falta confirmar.
