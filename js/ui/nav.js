@@ -28,7 +28,7 @@ export function createNav() {
   let current = { route: null, animal: null };
 
   const links = (cls) => SECTIONS.map((s) => {
-    const a = h("a", { class: cls, href: "#", dataset: { section: s } },
+    const a = h("a", { class: cls, href: "#", "aria-label": SECTION_LABEL[s], dataset: { section: s } },
       icon(SECTION_ICON[s]),
       h("span", { class: "nav-label" }, SECTION_LABEL[s]),
       h("span", { class: "nav-short", "aria-hidden": "true" }, SHORT[s]));
@@ -115,7 +115,6 @@ export function createNav() {
       const s = a.dataset.section;
       a.href = animalPath(animal.id, s);
       if (s === route.section) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
-      a.title = SECTION_LABEL[s];
     }
     sbName.textContent = animal.name;
     tbName.textContent = animal.name;

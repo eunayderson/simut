@@ -85,7 +85,7 @@ body[data-layout="app"] .toast-region { bottom: calc(56px + var(--sp-3) + env(sa
     box-shadow: 4px 0 24px rgba(22, 61, 58, .15);
   }
   body[data-layout="app"] .main-wrap { grid-column: 2; grid-row: 1; }
-  body[data-layout="app"] .sidebar { grid-column: 1; grid-row: 1; }
+  body[data-layout="app"] .sidebar { grid-column: 1; grid-row: 1; align-self: start; }
 }
 
 .sb-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }

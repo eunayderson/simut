@@ -2,7 +2,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-html, body { overflow-x: hidden; } /* rede de segurança; a causa real se evita com min-width: 0 */
+/* rede de segurança contra overflow horizontal; a causa real se evita com min-width: 0.
+   clip (e não hidden): hidden transforma o body em contêiner de rolagem e quebra position: sticky */
+html, body { overflow-x: clip; }
 
 body {
   margin: 0;

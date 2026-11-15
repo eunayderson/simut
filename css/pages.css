@@ -354,3 +354,14 @@
 .origin-legend li { display: grid; grid-template-columns: 190px minmax(0, 1fr); align-items: start; gap: var(--sp-3); }
 .origin-legend .badge-origin { justify-self: start; }
 @media (max-width: 479px) { .origin-legend li { grid-template-columns: minmax(0, 1fr); gap: var(--sp-1); } }
+
+/* ---------- Responsividade e contraste (tarefa 18) ---------- */
+.seg-btn { color: var(--color-text); }
+.ob-optional { color: var(--color-text); }
+@media (max-width: 479px) {
+  .card { padding: var(--sp-4); }
+  .page-head { margin-bottom: var(--sp-4); }
+  .page-grid { gap: var(--sp-3); }
+  .card-head { margin-bottom: var(--sp-3); }
+  .kv dd { font-size: var(--fs-sm); }
+}
