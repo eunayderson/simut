@@ -77,3 +77,31 @@ test("guard: com chave e perfil da nuvem ainda não lido, não decide pelo onboa
   // perfil local concluído: segue normal
   assert.equal(guard(parse("#/onboarding"), { ...pending, profile: DONE }), "#/animais");
 });
+
+test("startRouter: #k= colado na aba já aberta é lido antes do guard trocar o hash", async () => {
+  const { startRouter } = await import("../js/router.js");
+  const { getKey } = await import("../js/cloud.js");
+  const listeners = {};
+  const store = new Map();
+  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+  globalThis.location = { hash: "", pathname: "/simut/", search: "" };
+  globalThis.history = { replaceState: (_s, _t, url) => { const i = url.indexOf("#"); location.hash = i >= 0 ? url.slice(i) : ""; } };
+  globalThis.window = { addEventListener: (t, fn) => { listeners[t] = fn; }, scrollTo: () => {} };
+  const view = { replaceChildren: () => {} };
+  const page = { mount: () => null };
+  const keys = [];
+  const router = startRouter({
+    view, resolve: () => ({ page, ctx: {} }),
+    guardCtx: () => ({ profile: DONE, animals: [SIMUT] }),
+    readKey: () => { const k = getKey(); if (k) keys.push(k); },
+  });
+  router.start();
+  assert.equal(location.hash, "#/animais");
+  // a pessoa cola o link com a chave na mesma aba
+  const KEY = "teste-dev-apagar-0123456789abcdefghij";
+  location.hash = `#k=${KEY}`;
+  listeners.hashchange();
+  assert.deepEqual(keys, [KEY]);
+  assert.equal(store.get("simut.cloudKey"), KEY);
+  assert.equal(location.hash, "#/animais");
+});

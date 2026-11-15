@@ -341,6 +341,15 @@ on((reason) => {
   router = startRouter({
     view, resolve, onRoute,
     guardCtx,
+    readKey: () => {
+      const k = getKey();
+      if (!k || k === state.cloudKey) return; // o início já leu a chave
+      state.cloudKey = k;
+      log("chave da nuvem recebida pelo link");
+      toast("Nuvem conectada pelo link.", { kind: "success" });
+      pullCloudProfile();
+      cloudSync();
+    },
     onError: (e) => { log(`erro na página: ${e.message}`); showError(e.message); console.error(e); },
   });
   router.start();

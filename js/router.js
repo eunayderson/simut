@@ -65,11 +65,14 @@ export function guard(route, { profile = null, animals = [], draft = null, onboa
 
 // Roteador do navegador. resolve(route) devolve { page, ctx }; a página exporta mount(el, ctx)
 // e o retorno de mount pode ter unmount(). onRoute(route) roda depois de montar.
-export function startRouter({ view, resolve, guardCtx, onRoute = () => {}, onError = (e) => { throw e; } }) {
+// readKey() roda no início de cada rota, antes do guard: um #k=CHAVE colado na aba já aberta
+// é lido (cloud.getKey) antes de o guard trocar o hash.
+export function startRouter({ view, resolve, guardCtx, readKey = () => {}, onRoute = () => {}, onError = (e) => { throw e; } }) {
   let current = null;
   let depth = 0;
 
   function handle() {
+    if (depth === 0) { try { readKey(); } catch (e) { onError(e); } }
     const route = parse(location.hash);
     const redirect = guard(route, guardCtx());
     if (redirect && depth < 4) {
