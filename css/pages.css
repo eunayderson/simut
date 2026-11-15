@@ -170,3 +170,34 @@
 .card { container-type: inline-size; }
 @container (max-width: 520px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container (max-width: 360px) { .stats.three { grid-template-columns: minmax(0, 1fr); } .stats.three .stat { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2); } .stats.three .value { font-size: var(--fs-lg); } }
+
+/* ---------- Grade de animais ---------- */
+.grid-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin: calc(-1 * var(--sp-2)) 0 var(--sp-6); padding-top: env(safe-area-inset-top); }
+.gt-right { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.gt-user { font-weight: var(--fw-medium); color: var(--color-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+@media (max-width: 479px) { .gt-user { display: none; } }
+.grid-filter .check { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; font-size: var(--fs-sm); cursor: pointer; }
+.grid-filter input { width: 18px; height: 18px; accent-color: var(--color-green); }
+.animal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--sp-4); margin: 0; padding: 0; list-style: none; }
+.animal-grid > li { min-width: 0; display: flex; }
+.animal-card {
+  position: relative; flex: 1 1 auto; min-width: 0;
+  display: grid; justify-items: center; align-content: start; gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-4) var(--sp-5); text-align: center;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1); color: var(--color-text); text-decoration: none;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.animal-card:hover { border-color: var(--color-sage); color: var(--color-text); box-shadow: 0 2px 8px rgba(22, 61, 58, .08); }
+.animal-card.is-last { border-color: var(--color-green); box-shadow: inset 0 0 0 1px var(--color-green); }
+.animal-card.is-archived { opacity: .7; }
+.continue-badge { position: absolute; top: var(--sp-3); right: var(--sp-3); padding: 2px 10px; border-radius: var(--radius-pill); background: var(--color-green); color: var(--color-on-primary); font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
+.ac-name { font-size: var(--fs-lg); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+.ac-desc { font-size: var(--fs-sm); color: var(--color-text-2); }
+.animal-card .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.animal-card .chip svg { width: 14px; height: 14px; flex: none; }
+.muted-chip { color: var(--color-text-2); background: var(--color-bg); }
+.add-card { border-style: dashed; border-width: 1.5px; box-shadow: none; background: transparent; align-content: center; min-height: 220px; }
+.add-card:hover { background: var(--color-surface); border-color: var(--color-green); }
+.add-icon { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--color-success-bg); color: var(--color-green); }
+.add-icon svg { width: 28px; height: 28px; }
