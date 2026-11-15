@@ -157,6 +157,8 @@
 .strip-text { flex: 1 1 220px; min-width: 0; }
 .strip-text p { margin: 0; }
 .strip-name { font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+/* no celular o nome já está na barra do topo e no título: o cartão não repete */
+@media (max-width: 767px) { .strip-name { display: none; } }
 .strip-meta { color: var(--color-text-2); margin-top: var(--sp-1) !important; }
 
 /* Ilustração do animal */
