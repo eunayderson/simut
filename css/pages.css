@@ -264,6 +264,11 @@
   .ob-footer.summary .ob-buttons { flex-direction: row; align-items: center; }
   .ob-footer.summary .ob-buttons-right { flex-direction: row-reverse; width: auto; margin-left: auto; }
   .ob-footer.summary .btn-block { width: auto; }
+  /* resumo (etapa 4) é longo: os botões ficam fixos no rodapé também no desktop */
+  .ob-footer.summary { position: sticky; padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom)); }
+  .ob-footer.summary::before { display: block; }
+  .ob-footer.summary .ob-progress { margin-top: 0; }
+  .ob-main.wide { padding-top: var(--sp-6); }
 }
 
 .sum-grid { display: grid; gap: var(--sp-3); }
