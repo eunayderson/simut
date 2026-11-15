@@ -68,7 +68,7 @@ async function pushSync(key, sync) {
   for (let i = 0; i < chunks.length; i++) {
     await fs.setDoc(fs.doc(base, "chunks", String(i)), { data: fs.Bytes.fromUint8Array(chunks[i]) });
   }
-  await fs.setDoc(base, { endAt: sync.endAt, source: sync.source || "", packets: sync.packets.length, chunks: chunks.length, at: Date.now() });
+  await fs.setDoc(base, { endAt: sync.endAt, source: sync.source || "", packets: sync.packets.length, chunks: chunks.length, sensor: sync.sensor || null, at: Date.now() });
 }
 
 async function pullSync(key, id, meta) {
@@ -80,7 +80,7 @@ async function pullSync(key, id, meta) {
   }
   const raw = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
   let o = 0; for (const p of parts) { raw.set(p, o); o += p.length; }
-  return { id: Number(id), endAt: meta.endAt, source: meta.source, packets: unpack(raw) };
+  return { id: Number(id), endAt: meta.endAt, source: meta.source, sensor: meta.sensor || null, packets: unpack(raw) };
 }
 
 // Sobe o que só existe aqui, baixa o que só existe lá. Retorna os syncs novos baixados.

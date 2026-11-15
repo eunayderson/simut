@@ -1,11 +1,11 @@
-import { PersonoSensor, bluetoothSupport, hex } from "./ble.js?v=8";
-import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js?v=8";
-import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=8";
-import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js?v=8";
-import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js?v=8";
+import { PersonoSensor, bluetoothSupport, hex } from "./ble.js?v=9";
+import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js?v=9";
+import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=9";
+import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js?v=9";
+import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js?v=9";
 
 const $ = (id) => document.getElementById(id);
-export const VERSION = "8";
+export const VERSION = "9";
 const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now(), marks: loadMarks(), cloudKey: getKey(), cloudBusy: false };
 
 // ---------- erros visíveis ----------
@@ -43,9 +43,10 @@ async function refreshSensorInfo() {
     const clock = await sensor.readClock();
     $("kvClock").textContent = clock ? clock.toLocaleString("pt-BR") : "-";
     const info = await sensor.readInfo();
+    const status = await sensor.readStatus();
     if (info?.length) $("kvLevel").textContent = `${info[info.length - 1]}`;
-    return clock;
-  } catch (e) { log(`erro lendo info: ${e.message}`); return null; }
+    return { clock, info: info ? hex(info) : null, status: status ? hex(status) : null };
+  } catch (e) { log(`erro lendo info: ${e.message}`); return { clock: null }; }
 }
 
 // Um toque só: conecta, baixa, salva e desconecta. Ficar conectado gasta bateria do sensor.
@@ -57,7 +58,8 @@ $("btnConnect").addEventListener("click", async () => {
     setConnectedUi(true);
     $("progressWrap").hidden = false;
     bar.style.width = "0%"; txt.textContent = "Lendo o sensor...";
-    const clockBefore = await refreshSensorInfo();
+    const snap = await refreshSensorInfo();
+    const clockBefore = snap.clock;
     const t0 = Date.now();
     txt.textContent = "Baixando...";
     const res = await sensor.download({
@@ -67,7 +69,9 @@ $("btnConnect").addEventListener("click", async () => {
       },
     });
     const endAt = (clockBefore ? clockBefore.getTime() : t0) + (Date.now() - t0);
-    if (res.packets.length) await saveSync({ id: Date.now(), endAt, source: "bluetooth", packets: res.packets });
+    // salva mesmo sem pacotes: o registro do nível ao longo do tempo também é dado
+    await saveSync({ id: Date.now(), endAt, source: "bluetooth", packets: res.packets,
+      sensor: { info: snap.info, status: snap.status, clock: clockBefore ? clockBefore.getTime() : null } });
     bar.style.width = "100%";
     txt.textContent = res.packets.length
       ? `Pronto: ${res.packets.length} pacotes salvos${res.bad ? ` (${res.bad} descartados por erro)` : ""}${res.interrupted ? ". A conexão caiu no meio, salvei o que chegou." : "."}`
@@ -245,10 +249,25 @@ function render() {
   renderTrend(trend(state.epochs, Date.now(), s));
   renderValidation();
 
+  renderLevelHistory();
   $("kvPackets").textContent = state.syncs.reduce((a, x) => a + x.packets.length, 0).toLocaleString("pt-BR");
   $("kvSamples").textContent = state.samples.toLocaleString("pt-BR");
   let last = null; try { last = localStorage.getItem("simut.lastSync"); } catch { /* ignore */ }
   $("lastSync").textContent = last ? `Último download: ${new Date(Number(last)).toLocaleString("pt-BR")}` : "Nunca sincronizado";
+}
+
+// Último byte da resposta do comando 05: suspeita de nível de bateria (%). Registrado a cada sincronização.
+function renderLevelHistory() {
+  const rows = state.syncs.filter((x) => x.sensor?.info).map((x) => {
+    const b = x.sensor.info.split(" ").map((h) => parseInt(h, 16));
+    return { t: x.id, v: b[b.length - 1] };
+  });
+  const el = $("levelHistory");
+  if (!rows.length) { el.textContent = "O histórico do nível começa a ser registrado na próxima sincronização."; return; }
+  const last = rows[rows.length - 1];
+  $("kvLevel").textContent = `${last.v}`;
+  const fmt = (t) => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  el.textContent = "Histórico do nível: " + rows.slice(-8).map((r) => `${fmt(r.t)} → ${r.v}`).join(" · ");
 }
 
 function recompute() {
