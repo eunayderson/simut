@@ -113,7 +113,7 @@ body[data-layout="app"] .toast-region { bottom: calc(56px + var(--sp-3) + env(sa
 /* sidebar compacta: 72 px, ícone e rótulo curto */
 body[data-sidebar="compact"] .sidebar { padding: var(--sp-3) var(--sp-1); align-items: center; }
 body[data-sidebar="compact"] .sb-top { flex-direction: column; }
-body[data-sidebar="compact"] .logo-text,
+body[data-sidebar="compact"] .sidebar .logo-text,
 body[data-sidebar="compact"] .sb-animal-text,
 body[data-sidebar="compact"] .sb-art { display: none; }
 body[data-sidebar="compact"] .sb-animal { padding: var(--sp-1); background: transparent; }
