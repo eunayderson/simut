@@ -8,6 +8,7 @@ import { saveSync, loadSyncs, clearAll, saveSettings, migrateLastSync, clearLast
 import { migrateLocal, mergeAnimals, mergeProfile, findAnimal, sensorDecision, associateSensor, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
 import { saveMarks } from "./validation.js?v=10";
+import { reconcile } from "./cloud-sync.js?v=10";
 import { getKey, syncAll, mergeMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
 import { state, on, emit, recompute, setAnimal, currentAnimal, upsertAnimal, setAnimals, setProfile } from "./state.js?v=10";
 import { startRouter, focusHeading, parse, guard } from "./router.js?v=10";
@@ -188,7 +189,9 @@ async function cloudSync() {
   try {
     const r = await syncAll(state.cloudKey, state.syncs, log);
     for (const s of r.down) await saveSync(s);
-    state.marks.splice(0, state.marks.length, ...(await mergeMarks(state.cloudKey, state.marks)));
+    const marks = await mergeMarks(state.cloudKey, state.marks);
+    // junta de novo com o estado atual: marcação feita durante o await não some
+    state.marks.splice(0, state.marks.length, ...reconcile({ marks: state.marks }, { marks }).marks);
     saveMarks(state.marks);
     const pa = await syncProfileAndAnimals(state.cloudKey, { profile: state.profile, animals: state.animals }, log);
     setAnimals(pa.animals);
