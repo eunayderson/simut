@@ -135,7 +135,12 @@ export function mount(el, ctx) {
     birthF.append(birthErr);
     const neutF = fld("Castração", neutered, { hidden: !(sex.value === "macho" || sex.value === "femea") });
     species.addEventListener("change", () => { otherF.hidden = species.value !== "outro"; });
-    ageMode.addEventListener("change", () => { approxF.hidden = ageMode.value !== "aprox"; birthF.hidden = ageMode.value !== "nasc"; });
+    ageMode.addEventListener("change", () => { approxF.hidden = ageMode.value !== "aprox"; birthF.hidden = ageMode.value !== "nasc"; clear(birth, birthErr); });
+    // o erro some assim que a pessoa corrige
+    const clear = (input, err) => { input.removeAttribute("aria-invalid"); err.textContent = ""; };
+    name.addEventListener("input", () => clear(name, nameErr));
+    weight.addEventListener("input", () => clear(weight, weightErr));
+    birth.addEventListener("input", () => clear(birth, birthErr));
     sex.addEventListener("change", () => { neutF.hidden = !(sex.value === "macho" || sex.value === "femea"); });
 
     const redoRoutine = h("button", { class: "btn sm ghost", type: "button", onclick: () => { for (const [, s] of routine) s.value = ""; routine[0][1].focus(); } }, "Refazer rotina");

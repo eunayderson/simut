@@ -150,6 +150,12 @@ export function mount(el, ctx) {
       h("p", { class: "error", id: errId, "aria-live": "polite" }, error ? icon("alert") : null, error || ""));
   }
 
+  // Some com o erro assim que a pessoa corrige (ou troca de modo).
+  function clearError(input, errId = `${input.id}-err`) {
+    input.removeAttribute("aria-invalid");
+    document.getElementById(errId)?.replaceChildren();
+  }
+
   function setError(input, msg) {
     const err = document.getElementById(`${input.id}-err`);
     input.setAttribute("aria-invalid", "true");
@@ -167,7 +173,7 @@ export function mount(el, ctx) {
     if (draft.step === 1) {
       const input = h("input", { class: "input lg", type: "text", autocomplete: "name", maxlength: "60", autocapitalize: "words", enterkeyhint: "next", "aria-labelledby": qId });
       input.value = ans.personName || "";
-      input.addEventListener("input", () => { ans.personName = input.value; persist(); input.removeAttribute("aria-invalid"); });
+      input.addEventListener("input", () => { ans.personName = input.value; persist(); clearError(input); });
       return {
         q: "Como você se chama?", sub: "Vamos começar criando seu espaço no Simut.",
         body: field({ id: "ob-person", input }),
@@ -183,6 +189,7 @@ export function mount(el, ctx) {
         const otherBox = h("div", { class: "ob-reveal", hidden: ans.species !== "outro" }, field({ id: "ob-other", label: h("span", {}, "Qual animal? ", h("span", { class: "optional" }, "(opcional)")), input: other }));
         const grp = optionGroup([["cao", "Cão", "dog"], ["gato", "Gato", "cat"], ["outro", "Outro", "paw"]], ans.species, (v) => {
           ans.species = v; persist();
+          document.getElementById("ob-species-err")?.replaceChildren();
           otherBox.hidden = v !== "outro";
           if (v === "outro") setTimeout(() => other.focus());
         }, { autoAdvance: true, hold: ["outro"] }); // "Outro" não avança sozinho: revela o campo
@@ -203,7 +210,7 @@ export function mount(el, ctx) {
       if (key === "nome") {
         const input = h("input", { class: "input lg", type: "text", maxlength: "60", autocapitalize: "words", autocomplete: "off", enterkeyhint: "next", "aria-labelledby": qId });
         input.value = ans.name || "";
-        input.addEventListener("input", () => { ans.name = input.value; persist(); input.removeAttribute("aria-invalid"); });
+        input.addEventListener("input", () => { ans.name = input.value; persist(); clearError(input); });
         return {
           q: "Qual é o nome?", sub: "Como você chama o animal no dia a dia.",
           body: field({ id: "ob-name", input }), focus: input,
@@ -244,16 +251,17 @@ export function mount(el, ctx) {
           const age = ans.ageMode === "nasc" && birthDateError(ans.birthDate) ? null : animalFromAnswers({ ...ans, species: "cao", name: "x" }).age;
           live.textContent = ans.ageUnknown ? "Tudo bem, dá para completar depois em Opções." : age ? (ageLabel(age).replace(/^./, (c) => c.toUpperCase())) : "";
         };
+        const clearAgeError = () => { clearError(num, "ob-age-err"); date.removeAttribute("aria-invalid"); };
         if (!ans.ageMode) ans.ageMode = "aprox";
-        const seg = optionGroup([["aprox", "Aproximada"], ["nasc", "Data de nascimento"]], ans.ageMode, (v) => { ans.ageMode = v; ans.ageUnknown = false; unknown.setAttribute("aria-pressed", "false"); persist(); update(); }, { cls: "seg-btn", label: qId });
+        const seg = optionGroup([["aprox", "Aproximada"], ["nasc", "Data de nascimento"]], ans.ageMode, (v) => { ans.ageMode = v; ans.ageUnknown = false; unknown.setAttribute("aria-pressed", "false"); persist(); update(); clearAgeError(); }, { cls: "seg-btn", label: qId });
         seg.className = "segmented";
         const unknown = h("button", { type: "button", class: "chip", "aria-pressed": String(!!ans.ageUnknown) }, "Não sei");
         unknown.addEventListener("click", () => {
           ans.ageUnknown = !ans.ageUnknown; unknown.setAttribute("aria-pressed", String(ans.ageUnknown));
           if (ans.ageUnknown) { num.value = ""; date.value = ""; ans.ageValue = ""; ans.birthDate = ""; }
-          persist(); update();
+          persist(); update(); clearAgeError();
         });
-        const onInput = () => { ans.ageValue = num.value; ans.ageUnit = unit.value; ans.birthDate = date.value; if (num.value || date.value) { ans.ageUnknown = false; unknown.setAttribute("aria-pressed", "false"); } persist(); update(); num.removeAttribute("aria-invalid"); };
+        const onInput = () => { ans.ageValue = num.value; ans.ageUnit = unit.value; ans.birthDate = date.value; if (num.value || date.value) { ans.ageUnknown = false; unknown.setAttribute("aria-pressed", "false"); } persist(); update(); clearAgeError(); };
         num.addEventListener("input", onInput); unit.addEventListener("change", onInput); date.addEventListener("input", onInput);
         update();
         return {
@@ -284,10 +292,10 @@ export function mount(el, ctx) {
         const unknown = h("button", { type: "button", class: "chip", "aria-pressed": String(!!ans.weightUnknown) }, "Não sei");
         unknown.addEventListener("click", () => {
           ans.weightUnknown = !ans.weightUnknown; unknown.setAttribute("aria-pressed", String(ans.weightUnknown));
-          if (ans.weightUnknown) { input.value = ""; ans.weight = ""; }
+          if (ans.weightUnknown) { input.value = ""; ans.weight = ""; clearError(input); }
           persist();
         });
-        input.addEventListener("input", () => { ans.weight = input.value; if (input.value) { ans.weightUnknown = false; unknown.setAttribute("aria-pressed", "false"); } persist(); input.removeAttribute("aria-invalid"); });
+        input.addEventListener("input", () => { ans.weight = input.value; if (input.value) { ans.weightUnknown = false; unknown.setAttribute("aria-pressed", "false"); } persist(); clearError(input); });
         return {
           q: `Quanto ${nameOrIt() === "ele" ? "o animal" : nameOrIt()} pesa?`, sub: "Em quilos, pode usar vírgula. Um valor aproximado serve.", optional: true,
           body: h("div", { class: "stack" }, h("div", { class: "ob-inline unit" }, field({ id: "ob-weight", input }), h("span", { class: "unit-suffix", "aria-hidden": "true" }, "kg")), h("div", { class: "chips" }, unknown)),
