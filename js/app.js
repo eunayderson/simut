@@ -5,8 +5,10 @@ import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings, loadAnimals,
 import { migrateLocal, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { fmtMin, hhmm } from "./format.js?v=10";
 import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=10";
-import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js?v=10";
-import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js?v=10";
+import { loadMarks, saveMarks } from "./validation.js?v=10";
+import { getKey, syncAll, mergeMarks } from "./cloud.js?v=10";
+import { mount as mountValidation } from "./ui/validation-session.js?v=10";
+import { mount as mountCloudPanel } from "./ui/cloud-panel.js?v=10";
 
 const $ = (id) => document.getElementById(id);
 export const VERSION = "10";
@@ -298,103 +300,20 @@ function showBtHelp(reason) {
   log(`bluetooth indisponível (${reason}), ${isIOS() ? "iOS" : isAndroid() ? "Android" : "desktop"}`);
 }
 
-// ---------- sessão de validação ----------
-const CLS_LABEL = { rest: "Repouso", light: "Leve", vig: "Intenso" };
-function lastMark() { return state.marks[state.marks.length - 1]; }
-function addMark(id) {
-  state.marks.push({ t: Date.now(), s: id });
-  saveMarks(state.marks);
-  if (navigator.vibrate) navigator.vibrate(30);
-  renderValidation();
-  if (state.cloudKey) mergeMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem (marcação): ${e.message}`));
-}
-function renderStateGrid() {
-  const g = $("stateGrid");
-  g.innerHTML = "";
-  for (const st of STATES) {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = `btn state-btn ${st.cls ?? ""}`; b.textContent = st.label; b.dataset.id = st.id;
-    b.addEventListener("click", () => addMark(st.id));
-    g.append(b);
-  }
-}
-function renderNow() {
-  const m = lastMark(), el = $("valNow");
-  document.querySelectorAll(".state-btn").forEach((b) => b.classList.toggle("active", !!m && m.s === b.dataset.id));
-  if (!m || m.s === "fim") { el.textContent = "Nenhuma sessão em andamento"; return; }
-  const sec = Math.floor((Date.now() - m.t) / 1000);
-  el.innerHTML = `Agora: ${stateById[m.s].label}<span class="timer">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}</span>`;
-}
-setInterval(renderNow, 1000);
-
-function renderValidation() {
-  renderNow();
-  const ol = $("valMarks");
-  ol.innerHTML = state.marks.slice(-30).map((m) => `<li>${new Date(m.t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}: ${m.s === "fim" ? "Encerrado" : stateById[m.s].label}</li>`).join("");
-  const box = $("valResult");
-  if (!state.marks.length) { box.innerHTML = `<p class="muted small">Nenhuma marcação ainda.</p>`; return; }
-  const r = analyze(state.epochs, state.marks, state.settings);
-  if (!r.n) { box.innerHTML = `<p class="muted small">As marcações ainda não têm dados do sensor no mesmo horário. Sincronize o sensor depois da sessão.</p>`; return; }
-  const pct = (v) => (isFinite(v) ? `${Math.round(v * 100)}%` : "-");
-  const kTxt = !isFinite(r.kappa) ? "-" : r.kappa.toFixed(2);
-  const kWord = !isFinite(r.kappa) ? "" : r.kappa > 0.8 ? "quase perfeita" : r.kappa > 0.6 ? "substancial" : r.kappa > 0.4 ? "moderada" : "fraca";
-  const statRows = STATES.filter((x) => r.stats[x.id]).map((x) => { const v = r.stats[x.id]; return `<tr><td>${x.label}</td><td>${v.n}</td><td>${Math.round(v.med)}</td><td>${Math.round(v.p10)} a ${Math.round(v.p90)}</td></tr>`; }).join("");
-  const cls = ["rest", "light", "vig"];
-  const conf = cls.map((t) => `<tr><td>${CLS_LABEL[t]}</td>${cls.map((p) => `<td>${r.confusion[t][p]}</td>`).join("")}</tr>`).join("");
-  const missing = cls.filter((c) => r.counts[c] < 5).map((c) => CLS_LABEL[c].toLowerCase());
-  const sug = r.suggest;
-  const canApply = sug.tLight && sug.tVig && sug.tVig > sug.tLight;
-  box.innerHTML = `
-    <div class="val-kpis">
-      <div><span>Janelas comparadas</span><b class="big-num">${r.n}</b></div>
-      <div><span>Acurácia</span><b class="big-num">${pct(r.accuracy)}</b></div>
-      <div><span>Kappa</span><b class="big-num">${kTxt}</b><span>${kWord}</span></div>
-    </div>
-    <table><thead><tr><th>Estado</th><th>Janelas</th><th>Mediana (mg)</th><th>Faixa 10 a 90%</th></tr></thead><tbody>${statRows}</tbody></table>
-    <table><thead><tr><th>Observado / Sensor</th><th>Repouso</th><th>Leve</th><th>Intenso</th></tr></thead><tbody>${conf}</tbody></table>
-    <p class="val-note">Limiares atuais: leve ${state.settings.tLight} mg, intenso ${state.settings.tVig} mg.<br>
-    Sugeridos pelos dados: leve ${sug.tLight ?? "-"} mg${sug.balLight ? ` (acerto ${pct(sug.balLight)})` : ""}, intenso ${sug.tVig ?? "-"} mg${sug.balVig ? ` (acerto ${pct(sug.balVig)})` : ""}.</p>
-    ${missing.length ? `<p class="val-note">Faltam dados de: ${missing.join(", ")} (mínimo de 5 janelas cada).</p>` : ""}
-    ${canApply ? `<button class="btn primary" id="valApply">Aplicar limiares sugeridos</button>` : ""}`;
-  $("valApply")?.addEventListener("click", () => {
-    if (!confirm(`Trocar os limiares para leve ${sug.tLight} mg e intenso ${sug.tVig} mg? Para validar de verdade, teste esses limiares numa segunda sessão.`)) return;
-    state.settings = { ...state.settings, tLight: sug.tLight, tVig: sug.tVig };
+// ---------- sessão de validação (js/ui/validation-session.js) ----------
+const validation = mountValidation($("valCard"), {
+  state, animalId: LEGACY_ANIMAL_ID, animalName: "Simut", log,
+  getSettings: () => state.settings,
+  onApplyThresholds: ({ tLight, tVig }) => {
+    state.settings = { ...state.settings, tLight, tVig };
     saveSettings(state.settings); fillSettings(); recompute();
-  });
-}
+  },
+});
+const renderValidation = () => validation.render();
 
-$("valEnd").addEventListener("click", () => { if (lastMark() && lastMark().s !== "fim") addMark("fim"); });
-const pushMarksReplace = () => { if (state.cloudKey) replaceMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem (marcações): ${e.message}`)); };
-$("valUndo").addEventListener("click", () => { state.marks.pop(); saveMarks(state.marks); renderValidation(); pushMarksReplace(); });
-$("valClear").addEventListener("click", () => {
-  if (!confirm("Apagar todas as marcações de validação deste aparelho?")) return;
-  state.marks = []; saveMarks(state.marks); renderValidation(); pushMarksReplace();
-});
-$("valCopy").addEventListener("click", async () => {
-  const code = exportMarks(state.marks);
-  try { await navigator.clipboard.writeText(code); alert("Marcações copiadas. Cole no painel do outro aparelho em \"Colar marcações\"."); }
-  catch { prompt("Copie este código:", code); }
-});
-$("valPaste").addEventListener("click", () => {
-  const txt = prompt("Cole aqui o código das marcações (começa com SIMUT1:)");
-  if (!txt) return;
-  try {
-    const add = importMarks(txt);
-    const seen = new Set(state.marks.map((m) => `${Math.round(m.t / 1000)}:${m.s}`));
-    for (const m of add) if (!seen.has(`${Math.round(m.t / 1000)}:${m.s}`)) state.marks.push(m);
-    state.marks.sort((a, b) => a.t - b.t); saveMarks(state.marks); renderValidation();
-    if (state.cloudKey) mergeMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem: ${e.message}`));
-    alert(`${add.length} marcações recebidas.`);
-  } catch (e) { alert(`Não consegui ler: ${e.message}`); }
-});
-
-// ---------- nuvem ----------
-function cloudUi(text, ok = null) {
-  $("kvCloud").textContent = text;
-  $("kvCloud").dataset.ok = ok === null ? "" : String(ok);
-  $("cloudOn").hidden = !!state.cloudKey;
-  $("cloudOff").hidden = !state.cloudKey;
-}
+// ---------- nuvem (js/ui/cloud-panel.js) ----------
+const cloudPanel = mountCloudPanel($("cloudPanel"), { state, log, sync: () => cloudSync(), statusEls: [$("kvCloud")] });
+const cloudUi = (text, ok = null) => cloudPanel.setStatus(text, ok);
 async function cloudSync() {
   if (!state.cloudKey) { cloudUi("Desligada"); return; }
   if (state.cloudBusy) return;
@@ -412,21 +331,6 @@ async function cloudSync() {
     cloudUi(navigator.onLine ? `Erro: ${e.message}` : "Sem internet, tento de novo depois", false);
   } finally { state.cloudBusy = false; }
 }
-$("cloudConnect").addEventListener("click", () => {
-  const k = $("cloudKeyInput").value.trim();
-  if (!/^[A-Za-z0-9_-]{30,}$/.test(k)) { cloudUi(`Chave inválida (${k.length} caracteres). Cole de novo, sem espaços.`, false); return; }
-  setKey(k); state.cloudKey = k; $("cloudKeyInput").value = ""; cloudSync();
-});
-$("cloudLink").addEventListener("click", async () => {
-  const link = `${location.origin}${location.pathname}#k=${state.cloudKey}`;
-  try { await navigator.clipboard.writeText(link); alert("Link copiado. Abra esse link uma vez no outro aparelho e ele já fica conectado à nuvem. Não compartilhe com outras pessoas."); }
-  catch { prompt("Copie o link (não compartilhe):", link); }
-});
-$("cloudNow").addEventListener("click", () => cloudSync());
-$("cloudForget").addEventListener("click", () => {
-  if (!confirm("Desconectar este aparelho da nuvem? Os dados continuam na nuvem e neste navegador.")) return;
-  forgetKey(); state.cloudKey = null; cloudUi("Desligada");
-});
 window.addEventListener("online", () => cloudSync());
 
 // Dados antigos (sem animalId) pertencem ao Simut. Só cria o animal; nada é apagado.
@@ -440,7 +344,6 @@ function migrate() {
 // ---------- início ----------
 (async () => {
   fillSettings();
-  renderStateGrid();
   const bt = await bluetoothSupport();
   if (bt !== "ok") showBtHelp(bt);
   log(`painel iniciado (bluetooth: ${bt})`);

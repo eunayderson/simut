@@ -91,22 +91,7 @@
       <div class="chart" id="trendChart" role="img" aria-label="Gráfico de minutos ativos nos últimos 14 dias"></div>
     </section>
 
-    <section class="card" id="valCard">
-      <div class="card-head"><h2>Sessão de validação</h2><a class="small" href="https://github.com/eunayderson/simut/blob/main/docs/validacao.md" target="_blank" rel="noopener">Ver protocolo</a></div>
-      <p class="small muted">Toque no estado no momento em que ele começa. Cada estado por pelo menos 7 minutos. Depois sincronize o sensor e veja o resultado aqui.</p>
-      <div class="now" id="valNow">Nenhuma sessão em andamento</div>
-      <div class="state-grid" id="stateGrid"></div>
-      <div class="actions">
-        <button class="btn" id="valEnd">Encerrar</button>
-        <button class="btn ghost" id="valUndo">Desfazer última</button>
-        <button class="btn ghost" id="valCopy">Copiar marcações</button>
-        <button class="btn ghost" id="valPaste">Colar marcações</button>
-        <button class="btn ghost danger" id="valClear">Limpar marcações</button>
-      </div>
-      <ol class="marks small" id="valMarks"></ol>
-      <h3>Resultado</h3>
-      <div id="valResult" class="val-result"><p class="muted small">Ainda sem marcações com dados do sensor no mesmo horário.</p></div>
-    </section>
+    <section class="card" id="valCard" aria-label="Sessão de validação"></section>
 
     <section class="card">
       <details>
@@ -120,22 +105,7 @@
           <label>Unidades por g<input type="number" min="1" max="4096" step="1" name="lsbPerG"></label>
           <button class="btn" type="submit">Salvar e recalcular</button>
         </form>
-        <h3>Nuvem</h3>
-        <div id="cloudOff" hidden>
-          <p class="small muted">Este aparelho está conectado à nuvem do Simut. Para conectar outro aparelho, copie o link e abra lá uma vez.</p>
-          <div class="actions">
-            <button class="btn" id="cloudNow" type="button">Sincronizar nuvem agora</button>
-            <button class="btn" id="cloudLink" type="button">Copiar link para outro aparelho</button>
-            <button class="btn ghost danger" id="cloudForget" type="button">Desconectar deste aparelho</button>
-          </div>
-        </div>
-        <div id="cloudOn">
-          <p class="small muted">Cole a chave do Simut para guardar e juntar os dados de todos os aparelhos na nuvem.</p>
-          <div class="actions">
-            <input class="key-input" id="cloudKeyInput" type="password" placeholder="Chave do Simut" autocomplete="off">
-            <button class="btn primary" id="cloudConnect" type="button">Conectar nuvem</button>
-          </div>
-        </div>
+        <div id="cloudPanel"></div>
         <div class="actions">
           <button class="btn" id="btnCsv">Exportar janelas (CSV)</button>
           <label class="btn file">Importar .bin do Mac<input type="file" id="fileBin" accept=".bin" hidden></label>
