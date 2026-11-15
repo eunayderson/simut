@@ -129,6 +129,19 @@ export async function syncAll(key, localSyncs, log = () => {}) {
   return { up, down, total: remote.size + up };
 }
 
+// Sync já enviado que mudou de animal (modal "sensor de outro animal" respondido depois do
+// download): regrava só o metadado com o outro animalId. Devolve false se ainda não está lá.
+export async function reassignSync(key, id, animalId) {
+  await init();
+  const ref = fs.doc(db, "dogs", key, "syncs", String(id));
+  return fs.runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return false;
+    tx.set(ref, { ...snap.data(), animalId });
+    return true;
+  });
+}
+
 // Marcações: junta as daqui com as de lá (sem repetir segundo, estado e animal), respeitando
 // os tombstones (meta/marksDeleted), e grava. Ler, juntar e gravar numa transação por documento:
 // nada de outro aparelho é apagado, e o que foi desfeito não volta. Devolve { marks, deleted }.

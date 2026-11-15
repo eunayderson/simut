@@ -82,7 +82,7 @@ test("run: confirmSensor pode trocar o animal, sem descartar o download", async 
     confirmSensor: async (name, id) => { asked = [name, id]; return "simut"; },
   });
   assert.deepEqual(asked, ["Persono-8154CC", "a-2"]);
-  assert.equal(saved[0].animalId, "simut");
+  assert.equal(saved.at(-1).animalId, "simut");
 });
 
 test("run: erro no download desconecta e relança", async () => {
@@ -110,4 +110,40 @@ test("run: já conectado não chama connect de novo", async () => {
 
 test("resultText igual ao painel antigo", () => {
   assert.equal(resultText({ packets: [1, 2], bad: 0, interrupted: true }), "Pronto: 2 pacotes salvos. A conexão caiu no meio, salvei o que chegou.");
+});
+
+test("run: salva com o animal atual e desconecta ANTES de perguntar sobre o sensor", async () => {
+  const sensor = fakeSensor();
+  const saved = [], last = [];
+  let seenAtAsk = null;
+  const r = await run({
+    animalId: "a-2", sensor, log: () => {}, now: clockFn(),
+    saveSync: async (s) => saved.push({ ...s }), setLastSync: (id) => last.push(id),
+    confirmSensor: async () => { seenAtAsk = { saved: saved.length, calls: [...sensor.calls], connected: sensor.connected }; return "a-2"; },
+  });
+  // se o app for fechado com o modal aberto, o download já está salvo e o sensor já desligou
+  assert.equal(seenAtAsk.saved, 1);
+  assert.equal(seenAtAsk.calls.at(-1), "disconnect");
+  assert.equal(seenAtAsk.connected, false);
+  assert.equal(saved[0].animalId, "a-2");
+  assert.equal(saved.length, 1);
+  assert.equal(sensor.calls.filter((c) => c === "disconnect").length, 1);
+  assert.equal(r.reassigned, false);
+  assert.deepEqual(last, ["a-2"]);
+});
+
+test("run: trocar de animal no modal regrava o mesmo id com o outro animal", async () => {
+  const saved = [], last = [];
+  const r = await run({
+    animalId: "a-2", sensor: fakeSensor(), log: () => {}, now: clockFn(),
+    saveSync: async (s) => saved.push({ ...s }), setLastSync: (id) => last.push(id),
+    confirmSensor: async () => "simut",
+  });
+  assert.equal(saved.length, 2);
+  assert.equal(saved[0].id, saved[1].id);
+  assert.equal(saved[0].animalId, "a-2");
+  assert.equal(saved[1].animalId, "simut");
+  assert.equal(r.animalId, "simut");
+  assert.equal(r.reassigned, true);
+  assert.deepEqual(last, ["a-2", "simut"]);
 });

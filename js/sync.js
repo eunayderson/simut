@@ -33,11 +33,18 @@ export function resultText(res) {
 // run({ animalId, onProgress({pct, text}), onState(state, text), onInfo({clock, level}), confirmSensor(name, animalId) })
 // state: "searching" | "syncing" | "off"
 // confirmSensor pode devolver outro animalId (sensor associado a outro animal); o download nunca é descartado.
-// Devolve { sync, packets, bad, expected, interrupted, deviceName, animalId, text }. Lança em erro (depois de desconectar).
+// Devolve { sync, packets, bad, expected, interrupted, deviceName, animalId, previousAnimalId, reassigned, text }. Lança em erro (depois de desconectar).
 export async function run({
   animalId, onProgress = () => {}, onState = () => {}, onInfo = () => {}, confirmSensor = null,
   sensor = getSensor(), log = defaultLog, saveSync = storeSaveSync, setLastSync = storeSetLastSync, now = () => Date.now(),
 } = {}) {
+  let off = false;
+  const disconnect = () => {
+    if (off) return;
+    off = true;
+    sensor.disconnect();
+    onState("off", "Sensor desconectado (economizando bateria)");
+  };
   try {
     onState("searching", "Procurando sensor...");
     if (!sensor.connected) await sensor.connect();
@@ -58,26 +65,35 @@ export async function run({
       },
     });
     const endAt = (clockBefore ? clockBefore.getTime() : t0) + (now() - t0);
+    // Salva já com o animal atual e desconecta antes de qualquer pergunta: se o app for
+    // fechado com o modal de sensor aberto, o download não se perde e o sensor não fica ligado.
+    // salva mesmo sem pacotes: o registro do nível ao longo do tempo também é dado
+    const sync = { id: now(), endAt, source: "bluetooth", packets: res.packets,
+      sensor: { info: snap.info, status: snap.status, clock: clockBefore ? clockBefore.getTime() : null } };
+    if (animalId) sync.animalId = animalId;
+    if (deviceName) sync.sensorName = deviceName;
+    await saveSync(sync);
+    if (animalId) setLastSync(animalId, now());
+    const text = resultText(res);
+    onProgress({ pct: 100, text });
+    disconnect();
     let target = animalId;
     if (confirmSensor && deviceName) {
       try { target = (await confirmSensor(deviceName, animalId)) || animalId; }
       catch (e) { log(`associação do sensor: ${e.message}`); target = animalId; }
     }
-    // salva mesmo sem pacotes: o registro do nível ao longo do tempo também é dado
-    const sync = { id: now(), endAt, source: "bluetooth", packets: res.packets,
-      sensor: { info: snap.info, status: snap.status, clock: clockBefore ? clockBefore.getTime() : null } };
-    if (target) sync.animalId = target;
-    if (deviceName) sync.sensorName = deviceName;
-    await saveSync(sync);
-    const text = resultText(res);
-    onProgress({ pct: 100, text });
-    if (target) setLastSync(target, now());
-    return { sync, packets: res.packets, bad: res.bad, expected: res.expected, interrupted: res.interrupted, deviceName, animalId: target, text };
+    // trocou de animal no modal: regrava o mesmo id com o outro animal
+    const reassigned = !!target && target !== animalId;
+    if (reassigned) {
+      sync.animalId = target;
+      await saveSync(sync);
+      setLastSync(target, now());
+    }
+    return { sync, packets: res.packets, bad: res.bad, expected: res.expected, interrupted: res.interrupted, deviceName, animalId: target, previousAnimalId: animalId, reassigned, text };
   } catch (e) {
     log(`erro na sincronização: ${e.message}`);
     throw e;
   } finally {
-    sensor.disconnect();
-    onState("off", "Sensor desconectado (economizando bateria)");
+    disconnect();
   }
 }

@@ -9,7 +9,7 @@ import { migrateLocal, mergeAnimals, mergeProfile, findAnimal, sensorDecision, a
 import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
 import { saveMarks, saveDeleted } from "./validation.js?v=10";
 import { reconcile, coalesce } from "./cloud-sync.js?v=10";
-import { getKey, syncAll, syncMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
+import { getKey, syncAll, syncMarks, reassignSync, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
 import { state, on, emit, recompute, setAnimal, currentAnimal, upsertAnimal, setAnimals, setProfile } from "./state.js?v=10";
 import { startRouter, focusHeading, parse, guard } from "./router.js?v=10";
 import { createNav } from "./ui/nav.js?v=10";
@@ -102,6 +102,12 @@ async function syncSensor({ withToast = false } = {}) {
     setSensorUi({ busy: false });
     t?.update(r.text, { kind: "success", timeout: 6000 });
     await reload();
+    if (r.reassigned && state.cloudKey) {
+      // se o sync já subiu com o animal anterior (outro sync no meio), corrige lá também
+      // espera um sync da nuvem em andamento terminar (ele pode estar subindo a versão anterior)
+      try { await cloudSync.idle(); await reassignSync(state.cloudKey, r.sync.id, r.animalId); }
+      catch (e) { log(`nuvem (trocar animal do download): ${e.message}`); }
+    }
     cloudSync();
     if (r.animalId && r.animalId !== animal.id) navigate(`#/a/${r.animalId}/sensor`);
     return r;
