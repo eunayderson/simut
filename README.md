@@ -43,6 +43,8 @@ python3 -m http.server 8765
 # abra http://localhost:8765
 ```
 
+Sem sensor por perto, abra `http://localhost:8765/?mock=1`: o painel usa um sensor simulado (`js/mock-sensor.js`) que gera pacotes válidos. Com `?mock=NOME` o sensor simulado usa esse nome (útil para testar o aviso de sensor de outro animal). No modo simulado a nuvem fica desligada, o sensor simulado não é associado ao animal e os downloads simulados (`source: "simulado"`) nunca sobem para a nuvem.
+
 Testes (Node 20 ou mais novo, sem dependências):
 
 ```sh
