@@ -15,6 +15,7 @@ import { createTrend } from "../charts/trend.js?v=10";
 import { createProfile24 } from "../charts/profile24.js?v=10";
 import { animalPath } from "../router.js?v=10";
 import { processedDetail, EXPLAIN } from "./explain.js?v=10";
+import { badge, ORIGINS } from "../ui/badge.js?v=10";
 
 const DAY = 86400000;
 const dayStart = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -80,7 +81,7 @@ export function mount(el, ctx) {
           h("p", { class: "small muted" }, animalSubtitle(animal) || "Sem detalhes cadastrados"),
           h("p", { class: "small strip-meta" }, sensorChip, lastP, cloudP)),
         syncBtn),
-      card({ title: "Resumo do dia", span: 12, origin: { kind: "processado", detail: processedDetail(s0) }, tools: h("div", { class: "daynav" }, prev, dayLabel, next, todayBtn) }, sentence, stats),
+      card({ title: "Resumo do dia", span: 12, sub: `Minutos por classe no dia, só nos trechos medidos. Janelas de ${s0.epoch} s.`, origin: { kind: "processado", detail: processedDetail(s0) }, tools: h("div", { class: "daynav" }, prev, dayLabel, next, todayBtn) }, sentence, stats),
       card({
         title: "Actograma", span: 12, id: "actograma",
         sub: `Atividade por hora, um dia por linha (hoje embaixo). Janelas de ${s0.epoch} s, horário do aparelho.`,
@@ -99,11 +100,13 @@ export function mount(el, ctx) {
         help: { label: "Como ler o perfil de 24 horas?", title: "Perfil de 24 horas", content: EXPLAIN.profile },
         origin: { kind: "processado", detail: processedDetail(s0) },
       }, profHost),
-      card({ title: "Noite", span: 4, origin: "processado" }, nightSub, night),
-      card({ title: "Momentos ativos", sub: "Trechos de 2 minutos ou mais em movimento", span: 8, origin: "processado" }, bouts),
+      card({ title: "Noite", span: 4, origin: { kind: "processado", detail: processedDetail(s0) } }, nightSub, night),
+      card({ title: "Momentos ativos", sub: `Trechos de 2 minutos ou mais em movimento no dia selecionado (janelas de ${s0.epoch} s, pausas de até 2 janelas).`, span: 8, origin: { kind: "processado", detail: processedDetail(s0) } }, bouts),
       h("section", { class: "card span-12 explain", "aria-labelledby": "explain-h" },
         h("h2", { id: "explain-h" }, "Explicações"),
-        EXPLAIN.panels.map(([q, paras]) => h("details", {}, h("summary", {}, q), paras.map((p) => h("p", {}, p))))),
+        EXPLAIN.panels.map(([q, paras]) => h("details", {}, h("summary", {}, q), paras.map((p) => h("p", {}, p)))),
+        h("details", {}, h("summary", {}, "O que significam os selos de origem?"),
+          h("ul", { class: "origin-legend" }, Object.keys(ORIGINS).map((k) => h("li", {}, badge(k, { help: false }), h("span", { class: "small" }, ORIGINS[k].text)))))),
     ),
   );
 
@@ -127,7 +130,7 @@ export function mount(el, ctx) {
     const active = tot.light + tot.vig;
     const nb = dayBouts(state.epochs, day, settingsFor(animal)).length;
     const quando = isToday(day) ? "Hoje" : "Neste dia";
-    return `${quando}, em ${fmtMin(covered)} medidos, ${animal.name} ficou ${fmtMin(tot.rest)} em repouso e ${fmtMin(active)} em movimento${tot.vig ? ` (${fmtMin(tot.vig)} intenso)` : ""}, com ${plural(nb, "momento ativo", "momentos ativos")}. O resto do dia não foi medido.`;
+    return `${quando}, em ${fmtMin(covered)} medidos, ${animal.name} ficou ${fmtMin(tot.rest)} em repouso e ${fmtMin(active)} em movimento${tot.vig ? ` (${fmtMin(tot.vig)} intenso)` : ""}, com ${plural(nb, "momento ativo", "momentos ativos")}. O resto do dia não foi medido. Estimativa, não diagnóstico.`;
   }
 
   function renderStrip() {
@@ -157,7 +160,7 @@ export function mount(el, ctx) {
 
     const n = nightSummary(state.epochs, state.day, s);
     const prevDay = new Date(dayStart(state.day) - DAY);
-    nightSub.textContent = `Das 22h de ${fmtDayMonth(prevDay)} às 6h de ${fmtDayMonth(state.day)}${n ? `, em ${fmtMin(n.coveredMin)} medidos` : ""}.`;
+    nightSub.textContent = `Das 22h de ${fmtDayMonth(prevDay)} às 6h de ${fmtDayMonth(state.day)}, janelas de ${s.epoch} s${n ? `, em ${fmtMin(n.coveredMin)} medidos` : ", sem medição"}.`;
     night.replaceChildren(
       stat("Tempo em repouso", n ? `${Math.round((n.restMin / n.coveredMin) * 100)}%` : null),
       stat("Despertares", n ? String(n.wakes) : null),

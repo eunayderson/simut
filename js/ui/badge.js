@@ -10,7 +10,7 @@ export const ORIGINS = {
   },
   processado: {
     label: "Processado", icon: "gear",
-    text: "Calculado a partir dos dados brutos (janelas de 60 s, classes, resumos). Depende de parâmetros ainda provisórios: taxa de amostragem e limiares.",
+    text: "Calculado a partir dos dados brutos (janelas de 60 s, classes, resumos). Depende de parâmetros ainda provisórios: taxa de amostragem e limiares. Estimativa, não diagnóstico.",
   },
   estimado: {
     label: "Estimado", icon: "approx",
