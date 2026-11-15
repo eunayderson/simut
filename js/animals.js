@@ -100,6 +100,17 @@ export function ageLabel(age, now = Date.now()) {
   return `${approx}${y} ${y === 1 ? "ano" : "anos"}`;
 }
 
+// "o Simut", "a Luna" ou só o nome (sexo não informado: não presume o gênero).
+export function nameWithArticle(a) {
+  const n = a?.name || "";
+  return a?.sex === "macho" ? `o ${n}` : a?.sex === "femea" ? `a ${n}` : n;
+}
+// "do Simut", "da Luna" ou "de Bidu".
+export function ofName(a) {
+  const n = a?.name || "";
+  return a?.sex === "macho" ? `do ${n}` : a?.sex === "femea" ? `da ${n}` : `de ${n}`;
+}
+
 export function breedLabel(breed) {
   if (breed === "srd") return "SRD";
   if (breed === "mestico") return "Mestiço";

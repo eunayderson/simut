@@ -256,3 +256,14 @@ test("birthDateError: data futura, inválida ou absurda dá erro; hoje e passado
   assert.match(birthDateError("1900-01-01", now), /40 anos/);
   assert.match(birthDateError("2026-02-31", now), /inválida/);
 });
+
+test("nameWithArticle e ofName: artigo conforme o sexo, sem presumir quando não informado", async () => {
+  const { nameWithArticle, ofName } = await import("../js/animals.js");
+  assert.equal(nameWithArticle({ name: "Simut", sex: "macho" }), "o Simut");
+  assert.equal(nameWithArticle({ name: "Luna", sex: "femea" }), "a Luna");
+  assert.equal(nameWithArticle({ name: "Bidu" }), "Bidu");
+  assert.equal(nameWithArticle({ name: "Bidu", sex: "nao-informar" }), "Bidu");
+  assert.equal(ofName({ name: "Simut", sex: "macho" }), "do Simut");
+  assert.equal(ofName({ name: "Luna", sex: "femea" }), "da Luna");
+  assert.equal(ofName({ name: "Bidu" }), "de Bidu");
+});

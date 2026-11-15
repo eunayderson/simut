@@ -13,7 +13,7 @@ import { loadDraft, saveDraft, clearDraft, saveLastAnimal } from "../store.js?v=
 import { startSession, record } from "../metrics.js?v=10";
 import {
   LEGACY_ANIMAL_ID, LEGACY_ANIMAL, mergeLegacyAnswers, SPECIES, SEX_LABEL, ROUTINE, BREEDS, newAnimalId, findAnimal,
-  answersFromAnimal, animalFromAnswers, birthDateError, parseDecimal, ageLabel, breedLabel, routineLabel,
+  answersFromAnimal, animalFromAnswers, birthDateError, nameWithArticle, ofName, parseDecimal, ageLabel, breedLabel, routineLabel,
 } from "../animals.js?v=10";
 import { animalPath } from "../router.js?v=10";
 
@@ -358,13 +358,14 @@ export function mount(el, ctx) {
       Object.keys(ROUTINE).map((k, i) => row(ROUTINE[k].label, routineLabel(k, ans[k]), 3, i)))));
 
     const legacy = flow === "legado";
-    const primary = h("button", { type: "submit", class: "btn primary lg btn-block" }, legacy ? `Ir para o painel do ${a.name || "Simut"}` : "Começar a monitorar");
+    const named = { name: a.name || "Simut", sex: a.sex };
+    const primary = h("button", { type: "submit", class: "btn primary lg btn-block" }, legacy ? `Ir para o painel ${ofName(named)}` : "Começar a monitorar");
     const secondary = legacy
-      ? h("button", { type: "button", class: "btn ghost btn-block", onclick: () => { draft.reviewing = true; goStep(2, 0); } }, `Revisar dados do ${a.name || "Simut"}`)
+      ? h("button", { type: "button", class: "btn ghost btn-block", onclick: () => { draft.reviewing = true; goStep(2, 0); } }, `Revisar dados ${ofName(named)}`)
       : h("button", { type: "button", class: "btn secondary btn-block", onclick: () => finish("visao-geral") }, "Explorar o Simut");
     return {
       q: "Está tudo pronto!",
-      sub: legacy ? `Já conhecemos ${a.name || "o Simut"} pelos dados guardados. Confira o resumo e, se quiser, complete o que faltar.` : "Confira o resumo. Você pode editar qualquer item antes de concluir.",
+      sub: legacy ? `Já conhecemos ${nameWithArticle(named)} pelos dados guardados. Confira o resumo e, se quiser, complete o que faltar.` : "Confira o resumo. Você pode editar qualquer item antes de concluir.",
       body: h("div", { class: "sum-grid" }, cards),
       actions: [primary, secondary],
       submit: () => finish(legacy ? "visao-geral" : "sensor"),
