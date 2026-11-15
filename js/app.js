@@ -5,7 +5,7 @@ import { bluetoothSupport, hex } from "./ble.js?v=10";
 import { log } from "./log.js?v=10";
 import { getSensor, run as runSync } from "./sync.js?v=10";
 import { saveSync, loadSyncs, clearAll, saveSettings, migrateLastSync, clearLastSyncs, saveLastAnimal, loadDraft } from "./store.js?v=10";
-import { migrateLocal, mergeAnimals, mergeProfile, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
+import { migrateLocal, mergeAnimals, mergeProfile, findAnimal, sensorDecision, associateSensor, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
 import { saveMarks } from "./validation.js?v=10";
 import { getKey, syncAll, mergeMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
@@ -13,6 +13,8 @@ import { state, on, emit, recompute, setAnimal, currentAnimal, upsertAnimal, set
 import { startRouter, focusHeading, parse } from "./router.js?v=10";
 import { createNav } from "./ui/nav.js?v=10";
 import { toast } from "./ui/toast.js?v=10";
+import { openModal } from "./ui/modal.js?v=10";
+import { h } from "./ui/dom.js?v=10";
 import { platformName } from "./ui/bt-help.js?v=10";
 import { VERSION } from "./version.js?v=10";
 
@@ -49,8 +51,34 @@ function setSensorUi(patch) {
 }
 sensor.addEventListener("disconnect", () => { if (!state.sensorUi.busy) setSensorUi({ phase: "off", text: "Sensor desconectado (economizando bateria)" }); });
 
-let confirmSensorImpl = null; // definido pela página do sensor (associação por animal, tarefa 14)
-export function setConfirmSensor(fn) { confirmSensorImpl = fn; }
+// Sensor e animal (plano, 3.3): associa sensor novo, pergunta quando o sensor é de outro animal.
+// Devolve o animal que fica com o download; o download nunca é descartado.
+async function confirmSensor(name, animalId) {
+  const animal = findAnimal(state.animals, animalId);
+  const d = sensorDecision(state.animals, name, animalId);
+  if (!animal || d.action === "ok") return animalId;
+  if (d.action === "associate") {
+    saveAnimal(associateSensor(animal, name));
+    toast(`Sensor ${name} associado a ${animal.name}.`, { kind: "success" });
+    log(`sensor ${name} associado a ${animal.id}`);
+    return animalId;
+  }
+  const owner = d.owner;
+  const choice = await openModal({
+    title: "Sensor de outro animal",
+    body: h("div", {},
+      h("p", {}, `Este sensor (`, h("span", { class: "mono" }, name), `) está associado a ${owner.name}. Salvar este download para ${animal.name} mesmo assim?`),
+      h("p", { class: "small muted" }, "O download já foi feito e não será perdido em nenhuma das opções.")),
+    dismissValue: "keep",
+    actions: [
+      { label: `Trocar para ${owner.name}`, value: "owner", kind: "secondary" },
+      { label: `Salvar para ${animal.name}`, value: "mine", kind: "primary", autofocus: true },
+    ],
+  });
+  if (choice === "owner") { log(`download de ${name} salvo para ${owner.id} (dono do sensor)`); return owner.id; }
+  if (choice === "mine") { saveAnimal(associateSensor(animal, name)); log(`sensor ${name} associado também a ${animal.id}`); }
+  return animalId;
+}
 
 async function syncSensor({ withToast = false } = {}) {
   const animal = currentAnimal();
@@ -61,7 +89,7 @@ async function syncSensor({ withToast = false } = {}) {
     const r = await runSync({
       animalId: animal.id,
       sensor, log,
-      confirmSensor: confirmSensorImpl ? (name, id) => confirmSensorImpl(name, id) : null,
+      confirmSensor,
       onState: (phase, text) => { setSensorUi({ phase, text }); t?.update(text); },
       onProgress: ({ pct, text }) => {
         setSensorUi({ pct: pct ?? state.sensorUi.pct, progress: text });
@@ -197,7 +225,7 @@ const nav = createNav();
 const PAGES = {
   "visao-geral": visaoGeralPage, avancado: avancadoPage, sensor: sensorPage, dados: dadosPage, opcoes: opcoesPage,
 };
-const app = { syncSensor, reload, importBin, clearLocal, updateSettings, saveAnimal, saveProfile, cloudSync, setConfirmSensor };
+const app = { syncSensor, reload, importBin, clearLocal, updateSettings, saveAnimal, saveProfile, cloudSync };
 
 function resolve(route) {
   const base = { state, route, navigate, log, app };

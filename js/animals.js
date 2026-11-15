@@ -218,3 +218,29 @@ export function animalFromAnswers(ans = {}, base = {}, now = Date.now()) {
   a.updatedAt = now;
   return a;
 }
+
+// ---------- sensor e animal (plano, 3.3) ----------
+export const hasSensor = (animal, name) => !!name && (animal?.sensors || []).some((s) => s.name === name);
+
+// Associa o sensor ao animal (sem duplicar). Devolve um novo animal.
+export function associateSensor(animal, name, now = Date.now()) {
+  if (!name || hasSensor(animal, name)) return animal;
+  return { ...animal, sensors: [...(animal.sensors || []), { name, since: now }], updatedAt: now };
+}
+
+// Remove a associação (os downloads continuam com o animal que tinham).
+export function dissociateSensor(animal, name, now = Date.now()) {
+  if (!hasSensor(animal, name)) return animal;
+  return { ...animal, sensors: animal.sensors.filter((s) => s.name !== name), updatedAt: now };
+}
+
+// O que fazer ao sincronizar o sensor "name" no contexto do animal "animalId":
+//   { action: "ok" }                 o sensor já é deste animal
+//   { action: "associate" }          sensor sem dono: associar a este animal
+//   { action: "conflict", owner }    sensor associado a outro animal: perguntar (nunca descartar o download)
+export function sensorDecision(animals, name, animalId) {
+  const me = findAnimal(animals, animalId);
+  if (!name || hasSensor(me, name)) return { action: "ok" };
+  const owner = animals.find((a) => a.id !== animalId && !a.archived && hasSensor(a, name)) || null;
+  return owner ? { action: "conflict", owner } : { action: "associate" };
+}

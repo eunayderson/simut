@@ -186,3 +186,35 @@ test("answersFromAnimal e animalFromAnswers são inversas nos campos do onboardi
   assert.deepEqual({ ...back, updatedAt: 0 }, { ...orig, updatedAt: 0 });
   assert.equal(routineLabel("restPlace", "chao"), "Chão");
 });
+
+import { associateSensor, dissociateSensor, sensorDecision, hasSensor } from "../js/animals.js";
+
+test("associateSensor adiciona uma vez só; dissociateSensor remove", () => {
+  const a = { id: "a-1", name: "Mia", sensors: [] };
+  const b = associateSensor(a, "Persono-AAA", NOW);
+  assert.deepEqual(b.sensors, [{ name: "Persono-AAA", since: NOW }]);
+  assert.equal(b.updatedAt, NOW);
+  assert.equal(associateSensor(b, "Persono-AAA", NOW + 1), b);
+  assert.equal(hasSensor(b, "Persono-AAA"), true);
+  const c = dissociateSensor(b, "Persono-AAA", NOW + 2);
+  assert.deepEqual(c.sensors, []);
+  assert.equal(dissociateSensor(c, "Persono-AAA"), c);
+  assert.equal(associateSensor(a, null), a);
+});
+
+test("sensorDecision: sem dono associa, do próprio segue, de outro dá conflito", () => {
+  const simut = { ...LEGACY_ANIMAL };
+  const mia = { id: "a-1", name: "Mia", sensors: [] };
+  const animals = [simut, mia];
+  assert.deepEqual(sensorDecision(animals, "Persono-8154CC", "simut"), { action: "ok" });
+  assert.deepEqual(sensorDecision(animals, "Persono-NOVO", "a-1"), { action: "associate" });
+  const d = sensorDecision(animals, "Persono-8154CC", "a-1");
+  assert.equal(d.action, "conflict");
+  assert.equal(d.owner.id, "simut");
+  // depois de "Salvar para Mia" o sensor é dos dois: segue sem perguntar
+  const both = [simut, associateSensor(mia, "Persono-8154CC", NOW)];
+  assert.deepEqual(sensorDecision(both, "Persono-8154CC", "a-1"), { action: "ok" });
+  // animal arquivado não conta como dono
+  assert.deepEqual(sensorDecision([{ ...simut, archived: true }, mia], "Persono-8154CC", "a-1"), { action: "associate" });
+  assert.deepEqual(sensorDecision(animals, null, "a-1"), { action: "ok" });
+});

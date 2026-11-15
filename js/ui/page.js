@@ -19,7 +19,7 @@ export function card({ title, sub = "", origin = null, help = null, tools = null
     h("div", { class: "card-title" },
       h(level, {}, title, help ? helpButton({ align: "left", ...help }) : null),
       sub ? h("p", { class: "card-sub" }, sub) : null),
-    (o || tools) ? h("div", { class: "card-tools" }, tools, o ? badge(o.kind, { detail: o.detail || "" }) : null) : null) : null;
+    (o || tools) ? h("div", { class: "card-tools" }, tools, o ? badge(o.kind, { detail: o.detail || "", label: o.label || null }) : null) : null) : null;
   return h("section", { class: `card span-${span}${cls ? ` ${cls}` : ""}`, id }, head, body);
 }
 
