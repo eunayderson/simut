@@ -50,7 +50,8 @@ export function mount(el, ctx) {
   const dayLabel = h("span", { class: "day-label", "aria-live": "polite" });
   const prev = h("button", { class: "icon-btn", type: "button", "aria-label": "Dia anterior", onclick: () => setDay(state.day - DAY) }, icon("chevronLeft"));
   const next = h("button", { class: "icon-btn", type: "button", "aria-label": "Próximo dia", onclick: () => { if (!isToday(state.day)) setDay(state.day + DAY); } }, icon("chevronRight"));
-  const todayBtn = h("button", { class: "btn sm ghost", type: "button", onclick: () => setDay(Date.now()) }, "Hoje");
+  // em dia passado, um botão claro para voltar ao dia de hoje
+  const todayBtn = h("button", { class: "btn sm secondary", type: "button", "aria-label": "Voltar para hoje", onclick: () => setDay(Date.now()) }, "Hoje", icon("arrowRight"));
   const sentence = h("p", { class: "summary" });
   const stats = h("div", { class: "stats" });
 
