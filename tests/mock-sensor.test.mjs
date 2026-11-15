@@ -33,7 +33,7 @@ test("MockSensor: mesmo fluxo do sensor real (conecta, lê, baixa, desconecta), 
 test("nuvem: downloads simulados nunca sobem", async () => {
   const f = fakeFirestore();
   useBackend(f.fs, f.db);
-  const key = "teste-dev-apagar-simulado-0123456789ab";
+  const key = "chave-ficticia-ok-simulado-0123456789ab";
   const r = await syncAll(key, [{ id: 1, endAt: 1, source: MOCK_SOURCE, packets: [new Uint8Array(9)] }]);
   assert.equal(r.up, 0);
   assert.equal(f.db.writes.length, 0);

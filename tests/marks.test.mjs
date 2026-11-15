@@ -4,7 +4,7 @@ import { mergeMarkLists, mergeTombstones, undoLast, clearMarksOf, markKey } from
 import { fakeFirestore } from "./fake-firestore.mjs";
 import { useBackend, syncMarks } from "../js/cloud.js";
 
-const KEY = "teste-dev-apagar-marcacoes-0123456789abc";
+const KEY = "chave-ficticia-ok-marcacoes-0123456789abc";
 
 test("mergeMarkLists: tombstones (desfeitas) não voltam no merge", () => {
   const a = [{ t: 1000, s: "deitado" }, { t: 2000, s: "andando", a: "a-2" }];

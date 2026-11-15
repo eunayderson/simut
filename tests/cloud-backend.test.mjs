@@ -4,7 +4,7 @@ import { fakeFirestore } from "./fake-firestore.mjs";
 import { useBackend, syncProfileAndAnimals, reassignSync } from "../js/cloud.js";
 import { migrateLocal } from "../js/animals.js";
 
-const KEY = "teste-dev-apagar-0123456789abcdefghij";
+const KEY = "chave-ficticia-ok-0123456789abcdefghij";
 
 test("nuvem: Simut migrado offline não sobrescreve o Simut da nuvem (calibração, peso, nome, arquivado)", async () => {
   const f = fakeFirestore();

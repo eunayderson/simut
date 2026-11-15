@@ -98,7 +98,7 @@ test("startRouter: #k= colado na aba já aberta é lido antes do guard trocar o 
   router.start();
   assert.equal(location.hash, "#/animais");
   // a pessoa cola o link com a chave na mesma aba
-  const KEY = "teste-dev-apagar-0123456789abcdefghij";
+  const KEY = "chave-ficticia-ok-0123456789abcdefghij";
   location.hash = `#k=${KEY}`;
   listeners.hashchange();
   assert.deepEqual(keys, [KEY]);
