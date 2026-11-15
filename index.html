@@ -39,6 +39,7 @@
         <div><dt>Nível (provisório)</dt><dd id="kvLevel">-</dd></div>
         <div><dt>Pacotes guardados</dt><dd id="kvPackets">0</dd></div>
         <div><dt>Amostras decodificadas</dt><dd id="kvSamples">0</dd></div>
+        <div class="wide"><dt>Nuvem</dt><dd id="kvCloud">Desligada</dd></div>
       </dl>
       <div class="bt-help" id="btHint" hidden>
         <p id="btHintText"></p>
@@ -113,6 +114,22 @@
           <label>Unidades por g<input type="number" min="1" max="4096" step="1" name="lsbPerG"></label>
           <button class="btn" type="submit">Salvar e recalcular</button>
         </form>
+        <h3>Nuvem</h3>
+        <div id="cloudOff" hidden>
+          <p class="small muted">Este aparelho está conectado à nuvem do Simut. Para conectar outro aparelho, copie o link e abra lá uma vez.</p>
+          <div class="actions">
+            <button class="btn" id="cloudNow" type="button">Sincronizar nuvem agora</button>
+            <button class="btn" id="cloudLink" type="button">Copiar link para outro aparelho</button>
+            <button class="btn ghost danger" id="cloudForget" type="button">Desconectar deste aparelho</button>
+          </div>
+        </div>
+        <div id="cloudOn">
+          <p class="small muted">Cole a chave do Simut para guardar e juntar os dados de todos os aparelhos na nuvem.</p>
+          <div class="actions">
+            <input class="key-input" id="cloudKeyInput" type="password" placeholder="Chave do Simut" autocomplete="off">
+            <button class="btn primary" id="cloudConnect" type="button">Conectar nuvem</button>
+          </div>
+        </div>
         <div class="actions">
           <button class="btn" id="btnCsv">Exportar janelas (CSV)</button>
           <label class="btn file">Importar .bin do Mac<input type="file" id="fileBin" accept=".bin" hidden></label>

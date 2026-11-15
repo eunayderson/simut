@@ -2,9 +2,10 @@ import { PersonoSensor, bluetoothSupport, hex } from "./ble.js";
 import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js";
 import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js";
 import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js";
+import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js";
 
 const $ = (id) => document.getElementById(id);
-const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now(), marks: loadMarks() };
+const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now(), marks: loadMarks(), cloudKey: getKey(), cloudBusy: false };
 
 // ---------- log ----------
 const logLines = [];
@@ -64,6 +65,7 @@ $("btnConnect").addEventListener("click", async () => {
       : "O sensor não tinha dados novos.";
     try { localStorage.setItem("simut.lastSync", String(Date.now())); } catch { /* ignore */ }
     await reload();
+    cloudSync();
   } catch (e) {
     log(`erro na sincronização: ${e.message}`);
     if (e.name !== "NotFoundError") { $("progressWrap").hidden = false; txt.textContent = `Erro: ${e.message}`; }
@@ -91,6 +93,7 @@ $("fileBin").addEventListener("change", async (ev) => {
   log(`importado ${f.name}: ${packets.length} pacotes`);
   ev.target.value = "";
   await reload();
+  cloudSync();
 });
 
 $("btnClear").addEventListener("click", async () => {
@@ -306,6 +309,7 @@ function addMark(id) {
   saveMarks(state.marks);
   if (navigator.vibrate) navigator.vibrate(30);
   renderValidation();
+  if (state.cloudKey) mergeMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem (marcação): ${e.message}`));
 }
 function renderStateGrid() {
   const g = $("stateGrid");
@@ -363,10 +367,11 @@ function renderValidation() {
 }
 
 $("valEnd").addEventListener("click", () => { if (lastMark() && lastMark().s !== "fim") addMark("fim"); });
-$("valUndo").addEventListener("click", () => { state.marks.pop(); saveMarks(state.marks); renderValidation(); });
+const pushMarksReplace = () => { if (state.cloudKey) replaceMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem (marcações): ${e.message}`)); };
+$("valUndo").addEventListener("click", () => { state.marks.pop(); saveMarks(state.marks); renderValidation(); pushMarksReplace(); });
 $("valClear").addEventListener("click", () => {
   if (!confirm("Apagar todas as marcações de validação deste aparelho?")) return;
-  state.marks = []; saveMarks(state.marks); renderValidation();
+  state.marks = []; saveMarks(state.marks); renderValidation(); pushMarksReplace();
 });
 $("valCopy").addEventListener("click", async () => {
   const code = exportMarks(state.marks);
@@ -381,9 +386,51 @@ $("valPaste").addEventListener("click", () => {
     const seen = new Set(state.marks.map((m) => `${Math.round(m.t / 1000)}:${m.s}`));
     for (const m of add) if (!seen.has(`${Math.round(m.t / 1000)}:${m.s}`)) state.marks.push(m);
     state.marks.sort((a, b) => a.t - b.t); saveMarks(state.marks); renderValidation();
+    if (state.cloudKey) mergeMarks(state.cloudKey, state.marks).catch((e) => log(`nuvem: ${e.message}`));
     alert(`${add.length} marcações recebidas.`);
   } catch (e) { alert(`Não consegui ler: ${e.message}`); }
 });
+
+// ---------- nuvem ----------
+function cloudUi(text, ok = null) {
+  $("kvCloud").textContent = text;
+  $("kvCloud").dataset.ok = ok === null ? "" : String(ok);
+  $("cloudOn").hidden = !!state.cloudKey;
+  $("cloudOff").hidden = !state.cloudKey;
+}
+async function cloudSync() {
+  if (!state.cloudKey) { cloudUi("Desligada"); return; }
+  if (state.cloudBusy) return;
+  state.cloudBusy = true;
+  cloudUi("Sincronizando...");
+  try {
+    const r = await syncAll(state.cloudKey, state.syncs, log);
+    for (const s of r.down) await saveSync(s);
+    state.marks = await mergeMarks(state.cloudKey, state.marks);
+    saveMarks(state.marks);
+    if (r.down.length) await reload(); else renderValidation();
+    cloudUi(`Salva, ${r.total} ${r.total === 1 ? "download" : "downloads"} (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`, true);
+  } catch (e) {
+    log(`erro na nuvem: ${e.message}`);
+    cloudUi(navigator.onLine ? `Erro: ${e.message}` : "Sem internet, tento de novo depois", false);
+  } finally { state.cloudBusy = false; }
+}
+$("cloudConnect").addEventListener("click", () => {
+  const k = $("cloudKeyInput").value.trim();
+  if (!/^[A-Za-z0-9_-]{30,}$/.test(k)) { alert("Chave inválida. Ela tem pelo menos 30 letras, números, - ou _."); return; }
+  setKey(k); state.cloudKey = k; $("cloudKeyInput").value = ""; cloudSync();
+});
+$("cloudLink").addEventListener("click", async () => {
+  const link = `${location.origin}${location.pathname}#k=${state.cloudKey}`;
+  try { await navigator.clipboard.writeText(link); alert("Link copiado. Abra esse link uma vez no outro aparelho e ele já fica conectado à nuvem. Não compartilhe com outras pessoas."); }
+  catch { prompt("Copie o link (não compartilhe):", link); }
+});
+$("cloudNow").addEventListener("click", () => cloudSync());
+$("cloudForget").addEventListener("click", () => {
+  if (!confirm("Desconectar este aparelho da nuvem? Os dados continuam na nuvem e neste navegador.")) return;
+  forgetKey(); state.cloudKey = null; cloudUi("Desligada");
+});
+window.addEventListener("online", () => cloudSync());
 
 // ---------- início ----------
 (async () => {
@@ -393,6 +440,8 @@ $("valPaste").addEventListener("click", () => {
   if (bt !== "ok") showBtHelp(bt);
   log(`painel iniciado (bluetooth: ${bt})`);
   await reload();
+  cloudUi(state.cloudKey ? "Conectando..." : "Desligada");
+  cloudSync();
 })();
 
 window.simut = { state, recompute, hex, showBtHelp };

@@ -199,3 +199,8 @@ footer { max-width: 920px; margin: 20px auto 0; text-align: center; }
 .val-kpis span { display: block; font-size: .75rem; color: var(--muted); }
 .val-note { font-size: .85rem; color: var(--muted); }
 .card a { color: var(--accent); }
+
+.kv .wide { grid-column: 1 / -1; }
+#kvCloud[data-ok="true"] { color: var(--ok); }
+#kvCloud[data-ok="false"] { color: var(--vig); }
+.key-input { flex: 1 1 220px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; }
