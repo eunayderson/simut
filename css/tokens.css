@@ -1,0 +1,90 @@
+/* Design tokens do SIMUT (identidade da spec, seção 4; plano, seção 7).
+   Breakpoints (referência, CSS não aceita variável em media query):
+     mobile 360 a 767, tablet 768 a 1023, desktop 1024 a 1439, large 1440+ */
+
+:root {
+  /* Marca */
+  --color-teal: #163D3A;
+  --color-green: #287C70;
+  --color-sage: #A7C9B8;
+
+  /* Superfícies */
+  --color-bg: #F7F9F7;
+  --color-surface: #FFFFFF;
+  --color-muted: #E8EFEB;
+  --color-border: #D5DED9;
+
+  /* Texto */
+  --color-text: #24332F;
+  --color-text-2: #64736D;
+  --color-on-primary: #FFFFFF;
+
+  /* Funcionais */
+  --color-success: #287C70;
+  --color-warning: #D69A38;
+  --color-error: #C65D5D;
+  --color-warning-text: #7C5210; /* texto pequeno de aviso, 6,8:1 em surface */
+  --color-error-text: #9E4343;   /* texto pequeno de erro, 6,3:1 em surface */
+  --color-warning-bg: #FBEFD9;
+  --color-error-bg: #F7E3E3;
+  --color-success-bg: #DDEDE7;
+  --color-focus: #287C70;
+
+  /* Categorias de atividade (ordinal; distinguíveis em protanopia, deuteranopia e tritanopia) */
+  --cat-rest: #8FBCA8;
+  --cat-light: #D69A38;
+  --cat-vig: #9E3B3B;
+  --cat-none: #E8EFEB;
+  --cat-none-hatch: #C9D4CE; /* ausência nunca é cor lisa: sempre com hachura */
+  --cat-none-pattern: repeating-linear-gradient(135deg, var(--cat-none) 0 4px, var(--cat-none-hatch) 4px 5px);
+
+  /* Tipografia */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-xs: .75rem;
+  --fs-sm: .875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.75rem;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --lh: 1.5;
+  --lh-tight: 1.25;
+
+  /* Espaço */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+
+  /* Raio e sombra */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(22, 61, 58, .06);
+
+  /* Movimento */
+  --dur: 160ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+
+  /* Camadas */
+  --z-sticky: 10;
+  --z-nav: 20;
+  --z-overlay: 30;
+  --z-popover: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur: 0ms; }
+}

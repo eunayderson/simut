@@ -1,11 +1,11 @@
-import { PersonoSensor, bluetoothSupport, hex } from "./ble.js?v=9";
-import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js?v=9";
-import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=9";
-import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js?v=9";
-import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js?v=9";
+import { PersonoSensor, bluetoothSupport, hex } from "./ble.js?v=10";
+import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js?v=10";
+import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=10";
+import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js?v=10";
+import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js?v=10";
 
 const $ = (id) => document.getElementById(id);
-export const VERSION = "9";
+export const VERSION = "10";
 const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now(), marks: loadMarks(), cloudKey: getKey(), cloudBusy: false };
 
 // ---------- erros visíveis ----------
