@@ -4,11 +4,17 @@
 
 import { h, trapFocus, uniqueId } from "./dom.js?v=10";
 
+// Safari e Firefox no Mac não dão foco ao botão clicado: guarda o último gatilho tocado
+// para devolver o foco a ele quando o modal fecha (Esc, fundo ou botão).
+let lastTrigger = null;
+document.addEventListener("pointerdown", (e) => { lastTrigger = e.target.closest?.("button, a[href], [tabindex]:not([tabindex='-1']), input, select, textarea") || null; }, true);
+
 // openModal({ title, body, actions: [{ label, value, kind, autofocus }], dismissValue })
 // body: texto, nó ou função (dialog) => nó. Resolve com o value da ação escolhida.
 export function openModal({ title, body, actions = [{ label: "Fechar", value: null, kind: "primary" }], dismissValue = null, onSubmit } = {}) {
   return new Promise((resolve) => {
-    const opener = document.activeElement;
+    const active = document.activeElement;
+    const opener = active && active !== document.body && !active.matches?.("h1, h2, [tabindex='-1']") ? active : lastTrigger || active;
     const titleId = uniqueId("modal-title");
     const bodyId = uniqueId("modal-body");
     const dlg = h("dialog", { class: "modal", "aria-labelledby": titleId, "aria-describedby": bodyId });
