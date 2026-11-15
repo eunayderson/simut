@@ -1,12 +1,14 @@
 import { PersonoSensor, bluetoothSupport, hex } from "./ble.js?v=10";
-import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings } from "./store.js?v=10";
+import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings, loadAnimals, saveAnimals, loadProfile, migrateLastSync, getLastSync, setLastSync, clearLastSyncs } from "./store.js?v=10";
+import { migrateLocal, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
+import { fmtMin, hhmm } from "./format.js?v=10";
 import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=10";
 import { STATES, stateById, loadMarks, saveMarks, exportMarks, importMarks, analyze } from "./validation.js?v=10";
 import { getKey, setKey, forgetKey, syncAll, mergeMarks, replaceMarks } from "./cloud.js?v=10";
 
 const $ = (id) => document.getElementById(id);
 export const VERSION = "10";
-const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now(), marks: loadMarks(), cloudKey: getKey(), cloudBusy: false };
+const state = { settings: loadSettings(), syncs: [], epochs: [], samples: 0, day: Date.now(), marks: loadMarks(), cloudKey: getKey(), cloudBusy: false, animals: loadAnimals(), profile: loadProfile() };
 
 // ---------- erros visíveis ----------
 function showError(msg) {
@@ -76,7 +78,7 @@ $("btnConnect").addEventListener("click", async () => {
     txt.textContent = res.packets.length
       ? `Pronto: ${res.packets.length} pacotes salvos${res.bad ? ` (${res.bad} descartados por erro)` : ""}${res.interrupted ? ". A conexão caiu no meio, salvei o que chegou." : "."}`
       : "O sensor não tinha dados novos.";
-    try { localStorage.setItem("simut.lastSync", String(Date.now())); } catch { /* ignore */ }
+    setLastSync(LEGACY_ANIMAL_ID);
     await reload();
     cloudSync();
   } catch (e) {
@@ -112,7 +114,7 @@ $("fileBin").addEventListener("change", async (ev) => {
 $("btnClear").addEventListener("click", async () => {
   if (!confirm("Apagar todos os dados do Simut guardados neste navegador? Isso não tem volta.")) return;
   await clearAll();
-  try { localStorage.removeItem("simut.lastSync"); } catch { /* ignore */ }
+  clearLastSyncs();
   await reload();
 });
 
@@ -140,13 +142,6 @@ $("nextDay").addEventListener("click", () => { if (!isToday(state.day)) { state.
 const isToday = (t) => new Date(t).toDateString() === new Date().toDateString();
 
 // ---------- render ----------
-const fmtMin = (m) => {
-  if (!m) return "0 min";
-  const h = Math.floor(m / 60), r = Math.round(m % 60);
-  return h ? `${h}h${r ? ` ${String(r).padStart(2, "0")}` : ""}` : `${r} min`;
-};
-
-const hhmm = (t) => new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const CLS_NAME = { rest: "repouso", light: "leve", vig: "intenso" };
 
 function renderTimeline(day) {
@@ -252,8 +247,8 @@ function render() {
   renderLevelHistory();
   $("kvPackets").textContent = state.syncs.reduce((a, x) => a + x.packets.length, 0).toLocaleString("pt-BR");
   $("kvSamples").textContent = state.samples.toLocaleString("pt-BR");
-  let last = null; try { last = localStorage.getItem("simut.lastSync"); } catch { /* ignore */ }
-  $("lastSync").textContent = last ? `Último download: ${new Date(Number(last)).toLocaleString("pt-BR")}` : "Nunca sincronizado";
+  const last = getLastSync(LEGACY_ANIMAL_ID);
+  $("lastSync").textContent = last ? `Último download: ${new Date(last).toLocaleString("pt-BR")}` : "Nunca sincronizado";
 }
 
 // Último byte da resposta do comando 05: suspeita de nível de bateria (%). Registrado a cada sincronização.
@@ -460,6 +455,14 @@ $("cloudForget").addEventListener("click", () => {
 });
 window.addEventListener("online", () => cloudSync());
 
+// Dados antigos (sem animalId) pertencem ao Simut. Só cria o animal; nada é apagado.
+function migrate() {
+  migrateLastSync();
+  const m = migrateLocal({ syncs: state.syncs, marks: state.marks, animals: state.animals, profile: state.profile, hasCloudKey: !!state.cloudKey });
+  if (m.changed) { saveAnimals(m.animals); log(`migração: animal ${LEGACY_ANIMAL_ID} criado com ${state.syncs.length} download(s)`); }
+  state.animals = m.animals;
+}
+
 // ---------- início ----------
 (async () => {
   fillSettings();
@@ -468,6 +471,7 @@ window.addEventListener("online", () => cloudSync());
   if (bt !== "ok") showBtHelp(bt);
   log(`painel iniciado (bluetooth: ${bt})`);
   await reload();
+  migrate();
   cloudUi(state.cloudKey ? "Conectando..." : "Desligada");
   cloudSync();
 })();

@@ -2,7 +2,9 @@
 // para que a análise possa ser refeita quando a decodificação melhorar.
 
 const DB = "simut";
-const VERSION = 1;
+// v2: syncs ganham campos opcionais (animalId, sensorName). O upgrade só garante o store;
+// registros antigos ficam como estão e são migrados na leitura (ver animals.js).
+const VERSION = 2;
 
 function open() {
   return new Promise((resolve, reject) => {
@@ -26,7 +28,8 @@ async function tx(mode, fn) {
   });
 }
 
-// sync: { id: ms, endAt: ms (hora do sensor no fim do download), source, packets: Uint8Array[] }
+// sync: { id: ms, endAt: ms (hora do sensor no fim do download), source, packets: Uint8Array[],
+//         sensor?: {info, status, clock}, animalId?: string (ausente = Simut), sensorName?: string }
 export const saveSync = (sync) => tx("readwrite", (s) => s.put(sync));
 export const clearAll = () => tx("readwrite", (s) => s.clear());
 
@@ -48,4 +51,69 @@ export function loadSettings() {
 }
 export function saveSettings(s) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* modo privado */ }
+}
+
+// ---------- localStorage (JSON) ----------
+function readJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch { return fallback; }
+}
+function writeJson(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* modo privado */ }
+}
+function remove(key) {
+  try { localStorage.removeItem(key); } catch { /* modo privado */ }
+}
+
+// Perfil da pessoa: { name, createdAt, updatedAt, onboardingDone, onboardingFlow }
+export const loadProfile = () => readJson("simut.profile", null);
+export const saveProfile = (p) => writeJson("simut.profile", p);
+
+// Animais: ver animals.js
+export const loadAnimals = () => { const a = readJson("simut.animals", []); return Array.isArray(a) ? a : []; };
+export const saveAnimals = (list) => writeJson("simut.animals", list);
+
+export const loadLastAnimal = () => readJson("simut.lastAnimal", null);
+export const saveLastAnimal = (id) => writeJson("simut.lastAnimal", id);
+
+// Rascunho do onboarding: { flow, step, sub, answers, sessionId, startedAt }
+export const loadDraft = () => readJson("simut.onboardingDraft", null);
+export const saveDraft = (d) => writeJson("simut.onboardingDraft", d);
+export const clearDraft = () => remove("simut.onboardingDraft");
+
+// Eventos do onboarding (ver metrics.js)
+export const loadOnboardingEvents = () => { const e = readJson("simut.onboardingEvents", []); return Array.isArray(e) ? e : []; };
+export const saveOnboardingEvents = (list) => writeJson("simut.onboardingEvents", list);
+
+export const loadNavCollapsed = () => readJson("simut.nav.collapsed", false) === true;
+export const saveNavCollapsed = (v) => writeJson("simut.nav.collapsed", !!v);
+
+// Último download, por animal. O valor antigo (simut.lastSync) pertence ao Simut.
+const LAST_SYNC = "simut.lastSync";
+export function getLastSync(animalId) {
+  try {
+    const v = localStorage.getItem(`${LAST_SYNC}.${animalId}`) ?? (animalId === "simut" ? localStorage.getItem(LAST_SYNC) : null);
+    return v ? Number(v) : null;
+  } catch { return null; }
+}
+export function setLastSync(animalId, t = Date.now()) {
+  try { localStorage.setItem(`${LAST_SYNC}.${animalId}`, String(t)); } catch { /* modo privado */ }
+}
+// Copia o valor antigo para a chave do Simut (não apaga o antigo).
+export function migrateLastSync() {
+  try {
+    const old = localStorage.getItem(LAST_SYNC);
+    if (old && !localStorage.getItem(`${LAST_SYNC}.simut`)) localStorage.setItem(`${LAST_SYNC}.simut`, old);
+  } catch { /* modo privado */ }
+}
+// Usado por "Apagar dados deste aparelho": remove os últimos downloads de todos os animais.
+export function clearLastSyncs() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k === LAST_SYNC || k?.startsWith(`${LAST_SYNC}.`)) localStorage.removeItem(k);
+    }
+  } catch { /* modo privado */ }
 }
