@@ -119,7 +119,7 @@ export async function syncAll(key, localSyncs, log = () => {}) {
   const remote = await cloudSyncIds(key);
   let up = 0;
   for (const s of localSyncs) {
-    if (s.source === "TESTE") continue;
+    if (s.source === "TESTE" || s.source === "simulado") continue; // teste e sensor simulado (?mock=1) nunca sobem
     if (!remote.has(String(s.id))) { await pushSync(key, s); up++; }
   }
   const localIds = new Set(localSyncs.map((s) => String(s.id)));

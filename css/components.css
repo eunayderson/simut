@@ -278,3 +278,6 @@
   color: var(--color-text); text-align: center; font-size: var(--fs-sm);
 }
 .empty-state > * { background: var(--color-surface); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-sm); }
+
+/* modo simulado (?mock=1) */
+.mock-banner { margin: 0; padding: var(--sp-2) var(--sp-4); background: var(--color-warning-bg); color: var(--color-warning-text); font-size: var(--fs-sm); font-weight: var(--fw-medium); text-align: center; }

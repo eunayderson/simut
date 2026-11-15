@@ -54,6 +54,7 @@ export function resultText(res) {
 export async function run({
   animalId, onProgress = () => {}, onState = () => {}, onInfo = () => {}, confirmSensor = null,
   sensor = getSensor(), log = defaultLog, saveSync = storeSaveSync, setLastSync = storeSetLastSync, now = () => Date.now(),
+  source = "bluetooth",
 } = {}) {
   let off = false;
   const disconnect = () => {
@@ -85,7 +86,7 @@ export async function run({
     // Salva já com o animal atual e desconecta antes de qualquer pergunta: se o app for
     // fechado com o modal de sensor aberto, o download não se perde e o sensor não fica ligado.
     // salva mesmo sem pacotes: o registro do nível ao longo do tempo também é dado
-    const sync = { id: now(), endAt, source: "bluetooth", packets: res.packets,
+    const sync = { id: now(), endAt, source, packets: res.packets,
       sensor: { info: snap.info, status: snap.status, clock: clockBefore ? clockBefore.getTime() : null } };
     if (animalId) sync.animalId = animalId;
     if (deviceName) sync.sensorName = deviceName;

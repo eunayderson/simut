@@ -4,6 +4,7 @@
 import { bluetoothSupport, hex } from "./ble.js?v=10";
 import { log } from "./log.js?v=10";
 import { getSensor, run as runSync, bluetoothErrorText } from "./sync.js?v=10";
+import { MockSensor, MOCK_NAME, MOCK_SOURCE } from "./mock-sensor.js?v=10";
 import { saveSync, loadSyncs, clearAll, saveSettings, migrateLastSync, clearLastSyncs, saveLastAnimal, loadDraft } from "./store.js?v=10";
 import { migrateLocal, mergeAnimals, mergeProfile, findAnimal, sensorDecision, associateSensor, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
@@ -45,7 +46,14 @@ window.addEventListener("unhandledrejection", (e) => showError(e.reason?.message
 $("skipLink")?.addEventListener("click", (e) => { e.preventDefault(); $("view").focus(); });
 
 // ---------- sensor (um toque: conecta, baixa, salva e desconecta; js/sync.js) ----------
-const sensor = getSensor(log);
+// ?mock=1 usa um sensor simulado (js/mock-sensor.js) para testar sem hardware; ?mock=NOME simula
+// um sensor com esse nome. No modo simulado a nuvem fica desligada e nada vai para lá.
+const MOCK = new URLSearchParams(location.search).get("mock");
+const sensor = MOCK ? new MockSensor(log, { name: MOCK === "1" ? MOCK_NAME : MOCK.slice(0, 40) }) : getSensor(log);
+if (MOCK) {
+  const b = h("p", { class: "mock-banner", role: "note" }, "Modo simulado: o sensor é falso, os downloads ficam só neste aparelho e a nuvem está desligada.");
+  $("errBanner")?.before(b);
+}
 
 function setSensorUi(patch) {
   state.sensorUi = { ...state.sensorUi, ...patch };
@@ -60,6 +68,7 @@ async function confirmSensor(name, animalId) {
   const d = sensorDecision(state.animals, name, animalId);
   if (!animal || d.action === "ok") return animalId;
   if (d.action === "associate") {
+    if (MOCK) return animalId; // sensor simulado não fica associado ao animal
     saveAnimal(associateSensor(animal, name));
     toast(`Sensor ${name} associado a ${animal.name}.`, { kind: "success" });
     log(`sensor ${name} associado a ${animal.id}`);
@@ -78,7 +87,7 @@ async function confirmSensor(name, animalId) {
     ],
   });
   if (choice === "owner") { log(`download de ${name} salvo para ${owner.id} (dono do sensor)`); return owner.id; }
-  if (choice === "mine") { saveAnimal(associateSensor(animal, name)); log(`sensor ${name} associado também a ${animal.id}`); }
+  if (choice === "mine" && !MOCK) { saveAnimal(associateSensor(animal, name)); log(`sensor ${name} associado também a ${animal.id}`); }
   return animalId;
 }
 
@@ -91,6 +100,7 @@ async function syncSensor({ withToast = false } = {}) {
     const r = await runSync({
       animalId: animal.id,
       sensor, log,
+      source: MOCK ? MOCK_SOURCE : "bluetooth",
       confirmSensor,
       onState: (phase, text) => { setSensorUi({ phase, text }); t?.update(text); },
       onProgress: ({ pct, text }) => {
@@ -328,8 +338,8 @@ on((reason) => {
 
 // ---------- início ----------
 (async () => {
-  state.cloudKey = getKey();
-  bluetoothSupport().then((bt) => {
+  state.cloudKey = MOCK ? null : getKey();
+  (MOCK ? Promise.resolve("ok") : bluetoothSupport()).then((bt) => {
     state.bt = bt;
     log(`painel iniciado (bluetooth: ${bt}${bt === "ok" ? "" : `, ${platformName()}`})`);
     emit("sensor");
@@ -348,6 +358,7 @@ on((reason) => {
     view, resolve, onRoute,
     guardCtx,
     readKey: () => {
+      if (MOCK) return;
       const k = getKey();
       if (!k || k === state.cloudKey) return; // o início já leu a chave
       state.cloudKey = k;
