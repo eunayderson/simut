@@ -18,12 +18,15 @@ export function mount(el, ctx) {
   const optLink = h("a", { class: "btn sm ghost", href: "#/animais" }, icon("sliders"), h("span", {}, "Opções gerais"));
   const who = h("span", { class: "gt-user" });
   const filterBox = h("div", { class: "grid-filter" });
+  const pending = h("p", { class: "notice", role: "status", hidden: true },
+    "Conectando à nuvem para trazer seu perfil e seus animais. Tento de novo sozinho.");
 
   el.append(
     h("div", { class: "grid-top" },
       h("a", { class: "logo", href: "#/animais", "aria-label": "SIMUT, início" }, h("span", { class: "logo-mark", "aria-hidden": "true" }, "S"), h("span", { class: "logo-text" }, "SIMUT")),
       h("div", { class: "gt-right" }, who, optLink)),
     h("header", { class: "page-head" }, h("div", { class: "page-title" }, h("h1", {}, "Seus animais"), hello), filterBox),
+    pending,
     grid,
   );
 
@@ -53,6 +56,7 @@ export function mount(el, ctx) {
   }
 
   function render() {
+    pending.hidden = !state.cloudPending;
     const name = state.profile?.name;
     hello.textContent = name ? `Olá, ${name}. Escolha quem você quer acompanhar.` : "Escolha quem você quer acompanhar.";
     who.textContent = name || "";
@@ -81,7 +85,7 @@ export function mount(el, ctx) {
     );
   }
 
-  const off = on((r) => { if (r === "animals" || r === "data") render(); });
+  const off = on((r) => { if (r === "animals" || r === "data") render(); else if (r === "cloud") pending.hidden = !state.cloudPending; });
   render();
   return { unmount() { off(); } };
 }

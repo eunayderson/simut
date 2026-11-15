@@ -12,7 +12,7 @@ import { h, icon, uniqueId } from "../ui/dom.js?v=10";
 import { loadDraft, saveDraft, clearDraft, saveLastAnimal } from "../store.js?v=10";
 import { startSession, record } from "../metrics.js?v=10";
 import {
-  LEGACY_ANIMAL_ID, SPECIES, SEX_LABEL, ROUTINE, BREEDS, newAnimalId, findAnimal,
+  LEGACY_ANIMAL_ID, LEGACY_ANIMAL, mergeLegacyAnswers, SPECIES, SEX_LABEL, ROUTINE, BREEDS, newAnimalId, findAnimal,
   answersFromAnimal, animalFromAnswers, parseDecimal, ageLabel, breedLabel, routineLabel,
 } from "../animals.js?v=10";
 import { animalPath } from "../router.js?v=10";
@@ -27,6 +27,7 @@ function newDraft(flow, state) {
     const simut = findAnimal(state.animals, LEGACY_ANIMAL_ID);
     draft.animalId = LEGACY_ANIMAL_ID;
     draft.answers = answersFromAnimal(simut || {});
+    draft.prefill = answersFromAnimal(simut || {}); // para não sobrescrever o que chegar da nuvem depois
   }
   const session = startSession(flow);
   draft.sessionId = session.sessionId;
@@ -360,7 +361,9 @@ export function mount(el, ctx) {
     if (!String(ans.name || "").trim()) { draft.returnTo = 4; goStep(2, 1); return; }
     const now = Date.now();
     const base = flow === "legado" ? (findAnimal(state.animals, LEGACY_ANIMAL_ID) || { id: LEGACY_ANIMAL_ID }) : { id: draft.animalId || newAnimalId(now) };
-    const animal = animalFromAnswers(ans, base, now);
+    // legado: o que a pessoa não mexeu fica com o valor atual do Simut (pode ter vindo da nuvem)
+    const answers = flow === "legado" ? mergeLegacyAnswers(ans, draft.prefill || answersFromAnimal(LEGACY_ANIMAL), base) : ans;
+    const animal = animalFromAnswers(answers, base, now);
     if (flow !== "adicionar") {
       app.saveProfile({ ...(state.profile || {}), name: String(ans.personName).trim().slice(0, 60), createdAt: state.profile?.createdAt || now, onboardingDone: true, onboardingFlow: flow });
     }

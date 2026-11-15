@@ -43,6 +43,8 @@ export function findBySensor(animals, name) {
 
 // Migração local (pura). Entrada: o que está guardado neste aparelho.
 // Saída: { animals, profile, hasLegacyData, changed }.
+// O Simut criado aqui é só um padrão: updatedAt 0 faz qualquer versão da nuvem vencer o merge
+// (calibração, sensores, peso, nome e arquivado nunca são sobrescritos por ele).
 export function migrateLocal({ syncs = [], marks = [], animals = [], profile = null, hasCloudKey = false, now = Date.now() } = {}) {
   const hasLegacyData = syncs.length > 0 || marks.length > 0 || !!hasCloudKey;
   const out = animals.map((a) => ({ ...a }));
@@ -54,7 +56,7 @@ export function migrateLocal({ syncs = [], marks = [], animals = [], profile = n
       ...LEGACY_ANIMAL,
       age: { ...LEGACY_ANIMAL.age },
       sensors: LEGACY_ANIMAL.sensors.map((s) => ({ ...s })),
-      createdAt, updatedAt: createdAt,
+      createdAt, updatedAt: 0,
     });
     changed = true;
   }
@@ -173,6 +175,25 @@ export function answersFromAnimal(a = {}) {
   else if (a.neutered === null) out.neutered = "nao-sei";
   const r = a.routine || {};
   for (const k of Object.keys(ROUTINE)) if (r[k]) out[k] = r[k];
+  return out;
+}
+
+// Fluxo legado: o rascunho foi pré-preenchido com o Simut que existia ao começar (prefill).
+// Se o Simut mudou depois (chegou da nuvem), grupos de respostas que a pessoa não mexeu
+// ficam com o valor atual do animal, em vez de sobrescrevê-lo com o pré-preenchimento.
+const ANSWER_GROUPS = [
+  ["species", "speciesOther"], ["name"], ["breed", "breedChoice"],
+  ["ageMode", "ageValue", "ageUnit", "birthDate", "ageUnknown"], ["weight", "weightUnknown"],
+  ["sex", "neutered"], ["environment"], ["activity"], ["restPlace"],
+];
+export function mergeLegacyAnswers(ans = {}, prefill = {}, current = {}) {
+  const cur = answersFromAnimal(current);
+  const out = { ...ans };
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  for (const group of ANSWER_GROUPS) {
+    if (group.some((k) => !same(ans[k], prefill[k]))) continue; // a pessoa mexeu: vale a resposta
+    for (const k of group) { if (cur[k] === undefined) delete out[k]; else out[k] = cur[k]; }
+  }
   return out;
 }
 

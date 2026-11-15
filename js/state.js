@@ -17,6 +17,7 @@ export const state = {
   profile: loadProfile(),
   cloudKey: null,
   cloudBusy: false,
+  cloudPending: false,        // há chave e o perfil da nuvem ainda não foi lido
   cloud: { text: "Desligada", ok: null },
   animalId: null,             // animal da rota atual
   epochs: [],                 // janelas do animal atual (settings efetivas)

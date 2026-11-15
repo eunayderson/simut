@@ -10,7 +10,7 @@ import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./me
 import { saveMarks } from "./validation.js?v=10";
 import { getKey, syncAll, mergeMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
 import { state, on, emit, recompute, setAnimal, currentAnimal, upsertAnimal, setAnimals, setProfile } from "./state.js?v=10";
-import { startRouter, focusHeading, parse } from "./router.js?v=10";
+import { startRouter, focusHeading, parse, guard } from "./router.js?v=10";
 import { createNav } from "./ui/nav.js?v=10";
 import { toast } from "./ui/toast.js?v=10";
 import { openModal } from "./ui/modal.js?v=10";
@@ -193,6 +193,8 @@ async function cloudSync() {
     const pa = await syncProfileAndAnimals(state.cloudKey, { profile: state.profile, animals: state.animals }, log);
     setAnimals(pa.animals);
     if (pa.profile) setProfile(pa.profile);
+    clearTimeout(pullRetry);
+    setCloudPending(false);
     saveOnboardingEvents(await mergeOnboarding(state.cloudKey, loadOnboardingEvents()));
     if (r.down.length) await reload(); else emit("data");
     cloudUi(`Salva, ${r.total} ${r.total === 1 ? "download" : "downloads"} (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`, true);
@@ -207,17 +209,45 @@ async function cloudSync() {
 window.addEventListener("online", () => cloudSync());
 
 // Com chave: traz perfil e animais da nuvem antes de decidir qualquer coisa (até 4 s).
-// Um aparelho novo aberto pelo link já vê o que foi cadastrado em outro. Se falhar, segue com o local.
+// Um aparelho novo aberto pelo link já vê o que foi cadastrado em outro. Se falhar ou demorar,
+// o painel abre na grade ("conectando à nuvem"), sem decidir pelo onboarding, e tenta de novo.
+let pullRetry = null;
 async function pullCloudProfile() {
-  if (!state.cloudKey) return;
+  clearTimeout(pullRetry);
+  if (!state.cloudKey) { setCloudPending(false); return; }
   try {
     const r = await pullProfileAndAnimals(state.cloudKey, { timeoutMs: 4000 });
-    const a = mergeAnimals(state.animals, r.animals);
-    setAnimals(a.animals);
-    const p = mergeProfile(state.profile, r.profile);
-    if (p.profile) setProfile(p.profile);
-  } catch (e) { log(`nuvem (perfil e animais): ${e.message}`); }
+    applyCloudProfile(r);
+  } catch (e) {
+    log(`nuvem (perfil e animais): ${e.message}`);
+    if (!state.profile?.onboardingDone) setCloudPending(true);
+    pullRetry = setTimeout(pullCloudProfile, 10000);
+  }
 }
+window.addEventListener("online", () => { if (state.cloudPending) pullCloudProfile(); });
+
+// Junta o que veio da nuvem com o estado atual (o que foi editado aqui no meio continua valendo).
+function applyCloudProfile(r) {
+  setAnimals(mergeAnimals(state.animals, r.animals).animals);
+  const p = mergeProfile(state.profile, r.profile);
+  if (p.profile) setProfile(p.profile);
+  clearTimeout(pullRetry);
+  setCloudPending(false);
+}
+
+function setCloudPending(v) {
+  if (state.cloudPending === v) { refreshIfNeeded(); return; }
+  state.cloudPending = v;
+  emit("cloud");
+  refreshIfNeeded();
+}
+
+// O perfil chegou da nuvem (ou ficou claro que não há): refaz a rota só se o guard mudaria a decisão.
+function refreshIfNeeded() {
+  if (!router) return;
+  if (guard(router.route, guardCtx())) router.refresh();
+}
+const guardCtx = () => ({ profile: state.profile, animals: state.animals, draft: loadDraft(), onboarding: true, cloudPending: state.cloudPending });
 
 // Dados antigos (sem animalId) pertencem ao Simut. Só cria o animal; nada é apagado.
 function migrate() {
@@ -283,7 +313,7 @@ on((reason) => {
   migrate();
   router = startRouter({
     view, resolve, onRoute,
-    guardCtx: () => ({ profile: state.profile, animals: state.animals, draft: loadDraft(), onboarding: true }),
+    guardCtx,
     onError: (e) => { log(`erro na página: ${e.message}`); showError(e.message); console.error(e); },
   });
   router.start();

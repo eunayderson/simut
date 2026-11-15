@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  LEGACY_ANIMAL_ID, LEGACY_ANIMAL, migrateLocal, effectiveAnimalId, effectiveSettings,
-  findBySensor, newAnimalId, syncsFor, marksFor, ageLabel, animalSubtitle,
+  LEGACY_ANIMAL_ID, LEGACY_ANIMAL, migrateLocal, mergeLegacyAnswers, effectiveAnimalId, effectiveSettings,
+  findBySensor, newAnimalId, syncsFor, marksFor, ageLabel, animalSubtitle, mergeAnimals,
 } from "../js/animals.js";
 
 const NOW = 1_800_000_000_000;
@@ -217,4 +217,30 @@ test("sensorDecision: sem dono associa, do próprio segue, de outro dá conflito
   // animal arquivado não conta como dono
   assert.deepEqual(sensorDecision([{ ...simut, archived: true }, mia], "Persono-8154CC", "a-1"), { action: "associate" });
   assert.deepEqual(sensorDecision(animals, null, "a-1"), { action: "ok" });
+});
+
+test("migrateLocal: o Simut migrado nasce com updatedAt 0 (qualquer versão da nuvem vence)", () => {
+  for (const input of [{ hasCloudKey: true }, { syncs: [{ id: 1_700_000_000_000 }] }, { marks: [{ t: 1, s: "deitado" }] }]) {
+    const r = migrateLocal({ ...input, now: NOW });
+    assert.equal(r.animals[0].updatedAt, 0);
+  }
+  const remote = [{ id: "simut", name: "Simut Jr", weightKg: 7.2, calibration: { tLight: 30 }, updatedAt: 5 }];
+  const m = mergeAnimals(migrateLocal({ hasCloudKey: true, now: NOW }).animals, remote);
+  assert.equal(m.animals[0].name, "Simut Jr");
+  assert.deepEqual(m.toPush, []);
+});
+
+test("mergeLegacyAnswers: respostas que a pessoa não mexeu ficam com o que o Simut já tem (nuvem)", () => {
+  const prefill = answersFromAnimal(LEGACY_ANIMAL);
+  const current = { ...LEGACY_ANIMAL, name: "Simut Jr", weightKg: 7.2, breed: "Shih Tzu", calibration: { tLight: 30 }, archived: false, updatedAt: 9 };
+  // pessoa só trocou o sexo; o resto veio do pré-preenchimento antigo
+  const ans = { ...prefill, sex: "femea" };
+  const merged = mergeLegacyAnswers(ans, prefill, current);
+  const a = animalFromAnswers(merged, current, NOW);
+  assert.equal(a.name, "Simut Jr");
+  assert.equal(a.weightKg, 7.2);
+  assert.equal(a.sex, "femea");
+  assert.deepEqual(a.calibration, { tLight: 30 });
+  // pessoa mudou o nome: vale o que ela digitou
+  assert.equal(animalFromAnswers(mergeLegacyAnswers({ ...prefill, name: "Bidu" }, prefill, current), current, NOW).name, "Bidu");
 });

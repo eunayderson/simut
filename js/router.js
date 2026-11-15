@@ -40,12 +40,18 @@ export function parse(hash = "") {
 export const animalPath = (id, section = "visao-geral") => `#/a/${encodeURIComponent(id)}/${section}`;
 
 // Guard de entrada. Devolve o hash para onde redirecionar, ou null (rota liberada).
-// ctx = { profile, animals, draft, onboarding (liga a exigência do onboarding) }
+// ctx = { profile, animals, draft, onboarding (liga a exigência do onboarding),
+//         cloudPending (há chave e o perfil da nuvem ainda não foi lido: não decide pelo onboarding) }
 // Regras: sem onboarding concluído vai para o onboarding; quem já concluiu só entra no
 // onboarding para adicionar um animal (nunca vê o formulário de novo); rota vazia ou
 // inválida vai para a grade; animal inexistente vai para a grade.
-export function guard(route, { profile = null, animals = [], draft = null, onboarding = true } = {}) {
+export function guard(route, { profile = null, animals = [], draft = null, onboarding = true, cloudPending = false } = {}) {
   const done = !!profile?.onboardingDone;
+  if (cloudPending && !done) {
+    // sem saber se a pessoa já fez o onboarding em outro aparelho: mostra a grade e espera a nuvem
+    if (route.name === "onboarding") return "#/animais";
+    return guard(route, { profile, animals, draft, onboarding: false });
+  }
   if (route.name === "onboarding") {
     if (!onboarding || !done) return null;
     if (route.flow === "adicionar" || draft?.flow === "adicionar") return null;

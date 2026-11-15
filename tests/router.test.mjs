@@ -66,3 +66,14 @@ test("guard: com o onboarding desligado a entrada vai para a grade", () => {
   assert.equal(guard(parse("#/onboarding"), { profile: null, onboarding: false }), null);
   assert.equal(guard(parse("#/a/simut"), { profile: null, animals: [SIMUT], onboarding: false }), null);
 });
+
+test("guard: com chave e perfil da nuvem ainda não lido, não decide pelo onboarding", () => {
+  const pending = { profile: null, animals: [SIMUT], cloudPending: true };
+  assert.equal(guard(parse(""), pending), "#/animais");
+  assert.equal(guard(parse("#/animais"), pending), null);
+  assert.equal(guard(parse("#/onboarding"), pending), "#/animais");
+  assert.equal(guard(parse("#/onboarding/4"), pending), "#/animais");
+  assert.equal(guard(parse("#/a/simut/dados"), pending), null);
+  // perfil local concluído: segue normal
+  assert.equal(guard(parse("#/onboarding"), { ...pending, profile: DONE }), "#/animais");
+});

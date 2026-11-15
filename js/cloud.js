@@ -39,6 +39,9 @@ export function getKey() {
 export function setKey(k) { try { localStorage.setItem(KEY_STORE, k); } catch { /* ignore */ } }
 export function forgetKey() { try { localStorage.removeItem(KEY_STORE); } catch { /* ignore */ } }
 
+// Troca o Firestore (testes usam um em memória: tests/fake-firestore.mjs).
+export function useBackend(fsImpl, dbImpl) { fs = fsImpl; db = dbImpl; }
+
 async function init() {
   if (db) return;
   const app = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
@@ -172,7 +175,7 @@ export async function pushProfile(key, profile) {
 export async function pushAnimal(key, animal) {
   await init();
   if (!animal?.id) throw new Error("animal sem id");
-  await fs.setDoc(fs.doc(db, "dogs", key, "animals", animal.id), clean({ ...animal, updatedAt: animal.updatedAt || Date.now() }));
+  await fs.setDoc(fs.doc(db, "dogs", key, "animals", animal.id), clean({ ...animal, updatedAt: Number.isFinite(animal.updatedAt) ? animal.updatedAt : Date.now() }));
 }
 
 // Junta perfil e animais daqui e de lá (o mais novo vence) e sobe o que for mais novo aqui.
