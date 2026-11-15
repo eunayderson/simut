@@ -244,7 +244,10 @@ async function pullCloudProfile() {
   if (!state.cloudKey) { setCloudPending(false); return; }
   try {
     const r = await pullProfileAndAnimals(state.cloudKey, { timeoutMs: 4000 });
+    const wasPending = state.cloudPending;
     applyCloudProfile(r);
+    if (wasPending && state.cloud.ok === false) cloudSync(); // a nuvem voltou: sincroniza o resto
+
   } catch (e) {
     log(`nuvem (perfil e animais): ${e.message}`);
     if (!state.profile?.onboardingDone) setCloudPending(true);
