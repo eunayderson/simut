@@ -3,15 +3,16 @@
 // Estrutura (o nome "dogs" fica por compatibilidade, vale também para gatos e outros):
 //   dogs/{chave}/syncs/{id}            -> { endAt, source, packets, chunks, sensor, at, animalId?, sensorName? }
 //   dogs/{chave}/syncs/{id}/chunks/{i} -> { data: Bytes }  ([u16 tamanho][pacote] repetido)
-//   dogs/{chave}/meta/marks            -> { list: [{t, s, a?}], at }
+//   dogs/{chave}/meta/marks            -> { list: [{t, s}], at }   (só o Simut; a versão 9 lê e regrava este)
+//   dogs/{chave}/marks/{animalId}      -> { list: [{t, s, a}], at } (marcações dos outros animais)
 //   dogs/{chave}/meta/marksDeleted     -> { list: [{k: "seg:estado:animal", at}], at }   (marcações desfeitas ou limpas)
 //   dogs/{chave}/meta/profile          -> { name, createdAt, updatedAt, onboardingDone, onboardingFlow }
 //   dogs/{chave}/meta/onboarding       -> { events: [...], at }   (junta por id de evento, máximo 2000)
 //   dogs/{chave}/animals/{animalId}    -> animal completo (ver animals.js)
 // Documentos antigos nunca são reescritos: syncs só sobem quando não existem lá.
 
-import { mergeMarkLists, mergeTombstones } from "./validation.js?v=10";
-import { mergeAnimals, mergeProfile } from "./animals.js?v=10";
+import { mergeMarkLists, mergeTombstones, markAnimal } from "./validation.js?v=10";
+import { mergeAnimals, mergeProfile, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { mergeEvents } from "./metrics.js?v=10";
 
 const V = "11.0.2";
@@ -149,12 +150,30 @@ export async function syncMarks(key, localMarks = [], localDeleted = []) {
     const list = mergeTombstones(remote, localDeleted);
     return { value: list, write: !sameList(list, mergeTombstones(remote)), doc: { list, at: Date.now() } };
   });
-  const marks = await mergeDoc(fs.doc(db, "dogs", key, "meta", "marks"), (cur) => {
+  // meta/marks é lido também pela versão antiga (9), que regrava só {t, s}: lá ficam só as do Simut.
+  // Os outros animais ficam em marks/{animalId}. Marcações de outros animais que já estejam em
+  // meta/marks (gravadas antes desta divisão) são copiadas para marks/{animalId} antes de sair de lá.
+  const metaRef = fs.doc(db, "dogs", key, "meta", "marks");
+  const metaSnap = await fs.getDoc(metaRef);
+  const strays = (metaSnap.exists() ? metaSnap.data().list || [] : []).filter((m) => markAnimal(m) !== LEGACY_ANIMAL_ID);
+  const ids = new Set([...localMarks, ...strays].map(markAnimal).filter((id) => id !== LEGACY_ANIMAL_ID));
+  for (const d of (await fs.getDocs(fs.collection(db, "dogs", key, "marks"))).docs) ids.add(d.id);
+  const out = [];
+  for (const id of ids) {
+    const of = (list) => list.filter((m) => markAnimal(m) === id);
+    out.push(...await mergeDoc(fs.doc(db, "dogs", key, "marks", id), (cur) => {
+      const remote = cur?.list || [];
+      const list = mergeMarkLists(remote, of(localMarks), of(strays), { deleted }).map((m) => ({ ...m, a: id }));
+      return { value: list, write: !sameList(list, remote), doc: { list, at: Date.now() } };
+    }));
+  }
+  out.push(...await mergeDoc(metaRef, (cur) => {
     const remote = cur?.list || [];
-    const list = mergeMarkLists(remote, localMarks, { deleted });
+    const simut = (list) => list.filter((m) => markAnimal(m) === LEGACY_ANIMAL_ID);
+    const list = mergeMarkLists(simut(remote), simut(localMarks), { deleted }).map((m) => ({ t: m.t, s: m.s }));
     return { value: list, write: !sameList(list, remote), doc: { list, at: Date.now() } };
-  });
-  return { marks, deleted };
+  }));
+  return { marks: mergeMarkLists(out), deleted };
 }
 
 // ---------- perfil, animais e métricas do onboarding ----------

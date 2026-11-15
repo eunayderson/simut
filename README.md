@@ -13,6 +13,13 @@ Plataforma de pesquisa para monitorar atividade e repouso de animais com um sens
 
 Os dados ficam no navegador (IndexedDB e localStorage) e, com a chave do Simut, na nuvem (Firebase Firestore). Também dá para baixar pelo Mac com `tools/baixar_sensor.py` e importar o `.bin` em **Dados**.
 
+### Marcações de validação na nuvem
+
+- `dogs/{chave}/meta/marks` guarda **só as marcações do Simut**, no formato antigo `{t, s}`. A versão 9 (publicada antes da plataforma) lê e regrava esse documento sem o campo de animal; se outros animais ficassem lá, viravam marcações do Simut.
+- `dogs/{chave}/marks/{animalId}` guarda as marcações de cada outro animal (`{t, s, a}`). Marcações de outros animais que já estavam em `meta/marks` são copiadas para cá na primeira sincronização e só então saem de lá.
+- `dogs/{chave}/meta/marksDeleted` guarda as marcações desfeitas ou limpas (`{k: "segundo:estado:animal", at}`). Elas são filtradas em toda junção, então não voltam por outro aparelho nem pela versão 9. Desfazer e limpar só afetam as marcações visadas (limpar, só as do animal atual).
+- Cada documento é lido, juntado e gravado numa transação: nada de outro aparelho é apagado.
+
 ## Seções de cada animal
 
 | Seção | O que tem |

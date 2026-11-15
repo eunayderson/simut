@@ -62,3 +62,43 @@ test("nuvem: limpar só apaga as marcações do animal atual", async () => {
   const r = await syncMarks(KEY, c.marks, c.tombstones);
   assert.deepEqual(r.marks, [{ t: 1000, s: "deitado" }]);
 });
+
+// Aba antiga (versão 9, em main): lê meta/marks, junta deduplicando por t:s e regrava só {t, s}.
+function abaAntigaRegrava(f, key, local = []) {
+  const remote = f.get("dogs", key, "meta", "marks")?.list || [];
+  const seen = new Set(), list = [];
+  for (const m of [...remote, ...local].sort((a, b) => a.t - b.t)) {
+    const k = `${Math.round(m.t / 1000)}:${m.s}`;
+    if (seen.has(k)) continue;
+    seen.add(k); list.push({ t: m.t, s: m.s });
+  }
+  f.put({ list, at: 1 }, "dogs", key, "meta", "marks");
+}
+
+test("nuvem: meta/marks fica só com o Simut; outros animais em marks/{animalId}", async () => {
+  const f = fakeFirestore();
+  useBackend(f.fs, f.db);
+  await syncMarks(KEY, [{ t: 1000, s: "deitado", a: "simut" }, { t: 1000, s: "deitado", a: "a-luna" }, { t: 2000, s: "fim" }], []);
+  assert.deepEqual(f.get("dogs", KEY, "meta", "marks").list, [{ t: 1000, s: "deitado" }, { t: 2000, s: "fim" }]);
+  assert.deepEqual(f.get("dogs", KEY, "marks", "a-luna").list, [{ t: 1000, s: "deitado", a: "a-luna" }]);
+});
+
+test("nuvem: aba antiga regravando meta/marks não transforma marcações de outro animal em Simut", async () => {
+  const f = fakeFirestore();
+  useBackend(f.fs, f.db);
+  await syncMarks(KEY, [{ t: 1000, s: "deitado" }, { t: 1000, s: "deitado", a: "a-luna" }, { t: 3000, s: "andando", a: "a-luna" }], []);
+  abaAntigaRegrava(f, KEY, [{ t: 4000, s: "pausa" }]);
+  const r = await syncMarks(KEY, [], []); // aparelho novo, sem nada local
+  assert.deepEqual(r.marks.filter((m) => (m.a ?? "simut") === "simut").map((m) => m.t), [1000, 4000]);
+  assert.deepEqual(r.marks.filter((m) => m.a === "a-luna").map((m) => m.t), [1000, 3000]);
+});
+
+test("nuvem: marcações de outros animais já gravadas em meta/marks migram para marks/{animalId}", async () => {
+  const f = fakeFirestore();
+  useBackend(f.fs, f.db);
+  f.put({ list: [{ t: 1000, s: "deitado" }, { t: 5000, s: "brincando", a: "a-luna" }], at: 1 }, "dogs", KEY, "meta", "marks");
+  const r = await syncMarks(KEY, [], []);
+  assert.deepEqual(r.marks.map((m) => m.t), [1000, 5000]);
+  assert.deepEqual(f.get("dogs", KEY, "meta", "marks").list, [{ t: 1000, s: "deitado" }]);
+  assert.deepEqual(f.get("dogs", KEY, "marks", "a-luna").list, [{ t: 5000, s: "brincando", a: "a-luna" }]);
+});
