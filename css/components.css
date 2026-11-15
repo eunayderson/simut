@@ -47,6 +47,10 @@
 .help-btn::after { content: ""; position: absolute; inset: -10px; } /* alvo de toque de 44 px */
 .help-btn:hover, .help-btn[aria-expanded="true"] { background: var(--color-muted); color: var(--color-teal); }
 
+/* Links soltos em texto pequeno: alvo de toque de pelo menos 24 px (44 px em tela de toque) */
+.link-target { display: inline-flex; align-items: center; min-height: 24px; }
+@media (pointer: coarse) { .link-target { min-height: 44px; } }
+
 /* ---------- Campos ---------- */
 .field { display: grid; gap: var(--sp-1); min-width: 0; }
 .field > label, .field .label { font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--color-text); }
@@ -90,7 +94,7 @@
   background: var(--color-muted); color: var(--color-teal);
 }
 .badge-origin svg { width: 14px; height: 14px; flex: none; }
-.badge-origin .help-btn { width: 20px; height: 20px; margin: 0; font-size: 11px; border-color: transparent; background: transparent; }
+.badge-origin .help-btn { width: 24px; height: 24px; margin: -2px 0; font-size: 11px; border-color: transparent; background: transparent; }
 .badge-origin[data-kind="observado"] { background: var(--color-success-bg); color: var(--color-teal); }
 .badge-origin[data-kind="processado"] { background: var(--color-muted); color: var(--color-teal); }
 .badge-origin[data-kind="estimado"] { background: var(--color-warning-bg); color: var(--color-warning-text); }

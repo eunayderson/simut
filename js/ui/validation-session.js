@@ -32,7 +32,7 @@ export function mount(el, ctx) {
   const $ = (id) => el.querySelector(`#${id}`);
 
   el.innerHTML = `
-    <div class="card-head"><h2>Sessão de validação</h2><a class="small" href="${PROTOCOL_URL}" target="_blank" rel="noopener">Ver protocolo</a></div>
+    <div class="card-head"><h2>Sessão de validação</h2><a class="small link-target" href="${PROTOCOL_URL}" target="_blank" rel="noopener">Ver protocolo</a></div>
     <p class="small muted">Toque no estado no momento em que ele começa. Cada estado por pelo menos 7 minutos. Depois sincronize o sensor e veja o resultado aqui.</p>
     <div class="now" id="valNow" aria-live="polite">Nenhuma sessão em andamento</div>
     <div class="state-grid" id="stateGrid"></div>

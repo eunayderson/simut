@@ -127,7 +127,7 @@ export function mount(el, ctx) {
           h("span", { class: "mono" }, fmtShort(x.id)),
           h("span", {}, x.source === "bluetooth" ? `Bluetooth${x.sensorName ? `, ${x.sensorName}` : ""}` : x.source),
           h("span", { class: "num" }, plural(x.packets.length, "pacote"))))),
-        h("p", { class: "small" }, h("a", { href: animalPath(a.id, "dados"), onclick: (e) => { e.preventDefault(); navigate(animalPath(a.id, "dados")); } }, `Ver todos (${syncs.length}) em Dados`)))
+        h("p", { class: "small" }, h("a", { class: "link-target", href: animalPath(a.id, "dados"), onclick: (e) => { e.preventDefault(); navigate(animalPath(a.id, "dados")); } }, `Ver todos (${syncs.length}) em Dados`)))
       : h("p", { class: "small muted" }, "Nenhum download ainda."));
   }
 
