@@ -23,6 +23,23 @@ export async function readSensorInfo(sensor, log = defaultLog) {
   } catch (e) { log(`erro lendo info: ${e.message}`); return { clock: null }; }
 }
 
+// Erro do Bluetooth em frase curta em português. null = a pessoa cancelou o seletor (sem mensagem).
+// O texto original continua no log (diagnóstico).
+export function bluetoothErrorText(e) {
+  const name = e?.name || "", msg = String(e?.message || "");
+  if (/adapter not available|bluetooth.*(off|disabled)|globally disabled/i.test(msg) || name === "NotSupportedError")
+    return "Bluetooth indisponível. Confira se o Bluetooth do aparelho está ligado e se o navegador tem suporte.";
+  if (name === "NotFoundError" || /cancel/i.test(msg)) return null;
+  if (/user gesture/i.test(msg)) return "Toque de novo em Sincronizar sensor para escolher o sensor.";
+  if (name === "NotAllowedError" || name === "SecurityError" || /permission|denied/i.test(msg))
+    return "O navegador não deu permissão para usar o Bluetooth. Libere nas configurações do site e tente de novo.";
+  if (name === "NetworkError" || /disconnect|desconect|GATT|connection/i.test(msg))
+    return "A conexão com o sensor caiu. Aproxime o sensor, mexa nele para acordar e tente de novo.";
+  if (name === "TimeoutError" || /timeout|tempo esgotado/i.test(msg))
+    return "O sensor não respondeu a tempo. Mexa nele para acordar e tente de novo.";
+  return "Não consegui falar com o sensor. Mexa nele para acordar e tente de novo.";
+}
+
 // Texto final mostrado depois do download (igual ao painel antigo).
 export function resultText(res) {
   return res.packets.length

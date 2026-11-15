@@ -147,3 +147,17 @@ test("run: trocar de animal no modal regrava o mesmo id com o outro animal", asy
   assert.equal(r.reassigned, true);
   assert.deepEqual(last, ["a-2", "simut"]);
 });
+
+test("bluetoothErrorText: erros do navegador viram frases em português", async () => {
+  const { bluetoothErrorText } = await import("../js/sync.js");
+  const err = (name, message) => Object.assign(new Error(message), { name });
+  assert.equal(bluetoothErrorText(err("NotFoundError", "User cancelled the requestDevice() chooser.")), null);
+  assert.match(bluetoothErrorText(err("SecurityError", "Failed to execute 'requestDevice' on 'Bluetooth': Must be handling a user gesture to show a permission request.")), /Toque/);
+  assert.match(bluetoothErrorText(err("NotAllowedError", "Permission denied")), /permissão/);
+  assert.match(bluetoothErrorText(err("NotFoundError", "Bluetooth adapter not available.")), /Bluetooth (está )?desligado|indisponível/);
+  assert.match(bluetoothErrorText(err("NotSupportedError", "Web Bluetooth API globally disabled.")), /indisponível/);
+  assert.match(bluetoothErrorText(err("NetworkError", "GATT Server is disconnected. Cannot perform GATT operations.")), /conexão/);
+  assert.match(bluetoothErrorText(new Error("desconectado")), /conexão/);
+  assert.match(bluetoothErrorText(err("TypeError", "Failed to execute 'requestDevice' on 'Bluetooth': something")), /sensor/);
+  assert.doesNotMatch(bluetoothErrorText(err("TypeError", "Failed to execute 'requestDevice' on 'Bluetooth': x")), /Failed/);
+});

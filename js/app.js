@@ -3,7 +3,7 @@
 
 import { bluetoothSupport, hex } from "./ble.js?v=10";
 import { log } from "./log.js?v=10";
-import { getSensor, run as runSync } from "./sync.js?v=10";
+import { getSensor, run as runSync, bluetoothErrorText } from "./sync.js?v=10";
 import { saveSync, loadSyncs, clearAll, saveSettings, migrateLastSync, clearLastSyncs, saveLastAnimal, loadDraft } from "./store.js?v=10";
 import { migrateLocal, mergeAnimals, mergeProfile, findAnimal, sensorDecision, associateSensor, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
@@ -112,9 +112,12 @@ async function syncSensor({ withToast = false } = {}) {
     if (r.animalId && r.animalId !== animal.id) navigate(`#/a/${r.animalId}/sensor`);
     return r;
   } catch (e) {
-    const cancelled = e.name === "NotFoundError";
-    setSensorUi({ busy: false, error: cancelled ? null : e.message, progress: cancelled ? "" : `Erro: ${e.message}` });
-    if (t) { if (cancelled) t.update("Nenhum sensor escolhido.", { timeout: 4000 }); else t.update(`Erro: ${e.message}`, { kind: "error", timeout: 10000 }); }
+    // frase em português; o texto original do navegador fica no log
+    const text = bluetoothErrorText(e);
+    const cancelled = text === null;
+    log(`sensor: ${e.name || "Error"}: ${e.message}`);
+    setSensorUi({ busy: false, error: text, progress: cancelled ? "" : text });
+    if (t) { if (cancelled) t.update("Nenhum sensor escolhido.", { timeout: 4000 }); else t.update(text, { kind: "error", timeout: 10000 }); }
     return null;
   }
 }
