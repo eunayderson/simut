@@ -453,6 +453,7 @@ export function mount(el, ctx) {
         progress()),
     );
     track("step_view", { step: draft.step, sub: draft.sub });
+    window.scrollTo({ top: 0, behavior: "instant" }); // cada pergunta começa do topo (celular)
     const f = current.focus;
     if (f) queueMicrotask(() => { if (el.contains(f)) f.focus({ preventScroll: true }); }); // depois do foco no h1 feito pelo router
   }
