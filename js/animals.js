@@ -78,6 +78,19 @@ export function ageInMonths(age, now = Date.now()) {
   return y || mo ? y * 12 + mo : null;
 }
 
+// Erro da data de nascimento (AAAA-MM-DD) ou null. Vazio é válido (campo opcional).
+export function birthDateError(str, now = Date.now()) {
+  if (!str) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
+  if (!d || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) return "Data inválida. Confira dia, mês e ano.";
+  const n = new Date(now);
+  const today = new Date(n.getFullYear(), n.getMonth(), n.getDate(), 12);
+  if (d > today) return "A data de nascimento não pode ser no futuro.";
+  if (ageInMonths({ birthDate: str }, now) > 40 * 12) return "Use uma data de no máximo 40 anos atrás.";
+  return null;
+}
+
 export function ageLabel(age, now = Date.now()) {
   const m = ageInMonths(age, now);
   if (m === null) return "";

@@ -244,3 +244,15 @@ test("mergeLegacyAnswers: respostas que a pessoa não mexeu ficam com o que o Si
   // pessoa mudou o nome: vale o que ela digitou
   assert.equal(animalFromAnswers(mergeLegacyAnswers({ ...prefill, name: "Bidu" }, prefill, current), current, NOW).name, "Bidu");
 });
+
+test("birthDateError: data futura, inválida ou absurda dá erro; hoje e passado valem", async () => {
+  const { birthDateError } = await import("../js/animals.js");
+  const now = new Date(2026, 10, 15, 10).getTime();
+  assert.equal(birthDateError("2026-11-15", now), null);
+  assert.equal(birthDateError("2020-01-01", now), null);
+  assert.equal(birthDateError("", now), null); // vazio é opcional
+  assert.match(birthDateError("2030-01-01", now), /futuro/);
+  assert.match(birthDateError("2026-11-16", now), /futuro/);
+  assert.match(birthDateError("1900-01-01", now), /40 anos/);
+  assert.match(birthDateError("2026-02-31", now), /inválida/);
+});

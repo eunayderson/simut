@@ -11,7 +11,7 @@ import { toast } from "../ui/toast.js?v=10";
 import { modalUi } from "./avancado.js?v=10";
 import { summarize, load as loadEvents } from "../metrics.js?v=10";
 import { pullOnboarding } from "../cloud.js?v=10";
-import { SPECIES, SEX_LABEL, ROUTINE, BREEDS, answersFromAnimal, animalFromAnswers, parseDecimal } from "../animals.js?v=10";
+import { SPECIES, SEX_LABEL, ROUTINE, BREEDS, answersFromAnimal, animalFromAnswers, birthDateError, parseDecimal } from "../animals.js?v=10";
 import { fmtDate, pct } from "../format.js?v=10";
 import { VERSION } from "../version.js?v=10";
 
@@ -120,6 +120,8 @@ export function mount(el, ctx) {
     const ageValue = h("input", { class: "input", id: id("ageValue"), name: "ageValue", type: "text", inputmode: "decimal", maxlength: "4", value: ans.ageValue || "" });
     const ageUnit = sel("ageUnit", [["anos", "anos"], ["meses", "meses"]], ans.ageUnit || "anos");
     const birth = h("input", { class: "input", id: id("birth"), name: "birthDate", type: "date", max: new Date().toISOString().slice(0, 10), value: ans.birthDate || "" });
+    const birthErr = h("p", { class: "error", id: id("birth-err"), "aria-live": "polite" });
+    birth.setAttribute("aria-describedby", birthErr.id);
     const weight = h("input", { class: "input", id: id("weight"), name: "weight", type: "text", inputmode: "decimal", maxlength: "6", value: ans.weight || "", placeholder: ans.weightUnknown ? "Não sei" : "" });
     const weightErr = h("p", { class: "error", id: id("weight-err"), "aria-live": "polite" });
     weight.setAttribute("aria-describedby", weightErr.id);
@@ -130,6 +132,7 @@ export function mount(el, ctx) {
     const otherF = fld("Qual animal?", other, { hidden: species.value !== "outro" });
     const approxF = h("div", { class: "field", hidden: ageMode.value !== "aprox" }, h("label", { for: ageValue.id }, "Idade aproximada"), h("div", { class: "ob-inline" }, ageValue, ageUnit));
     const birthF = fld("Data de nascimento", birth, { hidden: ageMode.value !== "nasc", optional: false });
+    birthF.append(birthErr);
     const neutF = fld("Castração", neutered, { hidden: !(sex.value === "macho" || sex.value === "femea") });
     species.addEventListener("change", () => { otherF.hidden = species.value !== "outro"; });
     ageMode.addEventListener("change", () => { approxF.hidden = ageMode.value !== "aprox"; birthF.hidden = ageMode.value !== "nasc"; });
@@ -156,6 +159,10 @@ export function mount(el, ctx) {
       const w = parseDecimal(weight.value);
       if (weight.value.trim() && (w === null || w < 0.1 || w > 200)) { weightErr.textContent = "Use um valor entre 0,1 e 200 kg."; weight.setAttribute("aria-invalid", "true"); weight.focus(); return; }
       weight.removeAttribute("aria-invalid");
+      const bErr = ageMode.value === "nasc" ? birthDateError(birth.value) : null;
+      birthErr.textContent = bErr || "";
+      if (bErr) { birth.setAttribute("aria-invalid", "true"); birth.focus(); return; }
+      birth.removeAttribute("aria-invalid");
       const bt = breed.value.trim();
       const choice = /^srd$/i.test(bt) ? "srd" : /^mesti[cç]o$/i.test(bt) ? "mestico" : /^n[aã]o sei$/i.test(bt) ? "nao-sei" : null;
       const next = {

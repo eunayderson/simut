@@ -13,7 +13,7 @@ import { loadDraft, saveDraft, clearDraft, saveLastAnimal } from "../store.js?v=
 import { startSession, record } from "../metrics.js?v=10";
 import {
   LEGACY_ANIMAL_ID, LEGACY_ANIMAL, mergeLegacyAnswers, SPECIES, SEX_LABEL, ROUTINE, BREEDS, newAnimalId, findAnimal,
-  answersFromAnimal, animalFromAnswers, parseDecimal, ageLabel, breedLabel, routineLabel,
+  answersFromAnimal, animalFromAnswers, birthDateError, parseDecimal, ageLabel, breedLabel, routineLabel,
 } from "../animals.js?v=10";
 import { animalPath } from "../router.js?v=10";
 
@@ -241,7 +241,7 @@ export function mount(el, ctx) {
         const update = () => {
           approxBox.hidden = ans.ageMode === "nasc";
           dateBox.hidden = ans.ageMode !== "nasc";
-          const age = animalFromAnswers({ ...ans, species: "cao", name: "x" }).age;
+          const age = ans.ageMode === "nasc" && birthDateError(ans.birthDate) ? null : animalFromAnswers({ ...ans, species: "cao", name: "x" }).age;
           live.textContent = ans.ageUnknown ? "Tudo bem, dá para completar depois em Opções." : age ? (ageLabel(age).replace(/^./, (c) => c.toUpperCase())) : "";
         };
         if (!ans.ageMode) ans.ageMode = "aprox";
@@ -262,7 +262,14 @@ export function mount(el, ctx) {
             h("p", { class: "error", id: "ob-age-err", "aria-live": "polite" })),
           focus: ans.ageMode === "nasc" ? date : num,
           validate: () => {
-            if (ans.ageUnknown || ans.ageMode === "nasc" || !num.value.trim()) return true;
+            if (!ans.ageUnknown && ans.ageMode === "nasc") {
+              const msg = birthDateError(date.value);
+              if (!msg) return true;
+              date.setAttribute("aria-describedby", "ob-age-err");
+              msgEl("ob-age-err", msg); date.setAttribute("aria-invalid", "true"); date.focus();
+              return false;
+            }
+            if (ans.ageUnknown || !num.value.trim()) return true;
             const n = parseDecimal(num.value);
             if (n !== null && n > 0 && n <= (unit.value === "meses" ? 480 : 40)) return true;
             num.id = "ob-age"; num.setAttribute("aria-describedby", "ob-age-err");
