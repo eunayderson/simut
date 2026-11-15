@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F7F9F7">
+  <title>SIMUT | Catálogo de componentes</title>
+  <link rel="icon" href="../img/simut.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="../css/tokens.css?v=10">
+  <link rel="stylesheet" href="../css/base.css?v=10">
+  <link rel="stylesheet" href="../css/components.css?v=10">
+  <style>
+    .cat { max-width: 1100px; margin: 0 auto; padding: 24px 16px 96px; display: grid; gap: 24px; }
+    .cat > header p { margin: 4px 0 0; }
+    .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .swatch { border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; background: var(--color-surface); font-size: var(--fs-xs); }
+    .swatch div { height: 48px; }
+    .swatch p { margin: 0; padding: 6px 8px; }
+    .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <main class="cat" id="conteudo">
+    <header>
+      <h1>Catálogo de componentes</h1>
+      <p class="muted">Peças do design system do SIMUT (tokens, componentes, selos de origem). Arquivo de demonstração, não faz parte do painel.</p>
+    </header>
+
+    <section class="card" aria-labelledby="h-cores">
+      <div class="card-head"><h2 id="h-cores">Cores</h2></div>
+      <div class="swatches" id="swatches"></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-tipo">
+      <div class="card-head"><h2 id="h-tipo">Tipografia</h2></div>
+      <h1>Título h1, Inter 600</h1>
+      <h2>Título h2, Inter 600</h2>
+      <h3>Subtítulo h3, Inter 500</h3>
+      <p>Texto corrido em Inter 400. A ciência pode ser complexa, a experiência de usá-la não precisa ser.</p>
+      <p class="small muted">Texto pequeno secundário.</p>
+      <p class="mono">Persono-8154CC · 2026-11-15T14:03:00 · 1.234 pacotes</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-btn">
+      <div class="card-head"><h2 id="h-btn">Botões</h2></div>
+      <div class="row">
+        <button class="btn primary" type="button">Primário</button>
+        <button class="btn secondary" type="button">Secundário</button>
+        <button class="btn" type="button">Padrão</button>
+        <button class="btn ghost" type="button">Fantasma</button>
+        <button class="btn danger" type="button">Perigo</button>
+        <button class="btn primary" type="button" disabled>Desativado</button>
+        <button class="icon-btn" type="button" aria-label="Exemplo de botão de ícone">?</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary lg" type="button">Grande (52 px)</button>
+        <button class="btn sm" type="button">Pequeno</button>
+      </div>
+      <div style="margin-top:12px"><button class="btn primary lg btn-block" type="button">Bloco</button></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-campos">
+      <div class="card-head"><h2 id="h-campos">Campos e chips</h2></div>
+      <div class="demo-grid">
+        <div class="field">
+          <label for="f1">Nome</label>
+          <input class="input" id="f1" autocomplete="off" aria-describedby="f1-help">
+          <p class="help" id="f1-help">Pode ser o primeiro nome.</p>
+        </div>
+        <div class="field">
+          <label for="f2">Peso <span class="optional">(opcional)</span></label>
+          <input class="input" id="f2" type="number" step="0.1" aria-invalid="true" aria-describedby="f2-err" value="-3">
+          <p class="error" id="f2-err">O peso precisa estar entre 0,1 e 200 kg.</p>
+        </div>
+      </div>
+      <h3 style="margin:16px 0 8px">Chips</h3>
+      <div class="chips" role="radiogroup" aria-label="Raça" id="chipDemo">
+        <button class="chip" type="button" role="radio" aria-checked="true">SRD</button>
+        <button class="chip" type="button" role="radio" aria-checked="false">Mestiço</button>
+        <button class="chip" type="button" role="radio" aria-checked="false">Não sei</button>
+        <span class="chip static mono">Persono-8154CC</span>
+      </div>
+      <h3 style="margin:16px 0 8px">Option cards</h3>
+      <div class="option-grid" role="radiogroup" aria-label="Espécie" id="optDemo">
+        <button class="option-card" type="button" role="radio" aria-checked="true">Cão</button>
+        <button class="option-card" type="button" role="radio" aria-checked="false">Gato</button>
+        <button class="option-card" type="button" role="radio" aria-checked="false">Outro</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-selos">
+      <div class="card-head">
+        <div><h2 id="h-selos">Selos de origem</h2><p class="card-sub">Cada card com dados mostra de onde o dado vem. O "?" explica.</p></div>
+      </div>
+      <div class="row" id="badges"></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-stats">
+      <div class="card-head"><h2 id="h-stats">Stats, legenda, progresso e passos</h2><span id="statBadge"></span></div>
+      <div class="stats">
+        <div class="stat rest"><span class="label">Repouso</span><span class="value">7h 12</span></div>
+        <div class="stat light"><span class="label">Leve</span><span class="value">48 min</span></div>
+        <div class="stat vig"><span class="label">Intenso</span><span class="value">6 min</span></div>
+        <div class="stat"><span class="label">Tempo medido</span><span class="value none">sem dados</span></div>
+      </div>
+      <ul class="legend">
+        <li><span class="sw rest"></span>Repouso</li>
+        <li><span class="sw light"></span>Leve</li>
+        <li><span class="sw vig"></span>Intenso</li>
+        <li><span class="sw none"></span>Sem dados</li>
+        <li><span class="sw line"></span>Agora</li>
+      </ul>
+      <div class="progress" style="margin-top:16px">
+        <div class="bar"><span style="width:62%"></span></div>
+        <p>Baixando: 310 pacotes de ~500</p>
+      </div>
+      <div style="margin-top:20px">
+        <ol class="steps" aria-hidden="true">
+          <li class="done"><span class="dot"></span></li>
+          <li class="current"><span class="dot"></span></li>
+          <li><span class="dot"></span></li>
+          <li><span class="dot"></span></li>
+        </ol>
+        <p class="steps-label">Etapa 2 de 4: Conhecendo o animal</p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-tabela">
+      <div class="card-head"><h2 id="h-tabela">Tabela responsiva</h2></div>
+      <p class="small muted">Abaixo de 768 px cada linha vira um card.</p>
+      <table class="table table--cards">
+        <caption>Coletas de exemplo (dados fictícios de demonstração)</caption>
+        <thead><tr><th>Data</th><th>Fonte</th><th class="num">Pacotes</th><th class="num">Duração</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Data" class="mono">14/11 21:03</td><td data-label="Fonte">bluetooth</td><td data-label="Pacotes" class="num">540</td><td data-label="Duração" class="num">22 min</td></tr>
+          <tr><td data-label="Data" class="mono">13/11 08:40</td><td data-label="Fonte">arquivo</td><td data-label="Pacotes" class="num">512</td><td data-label="Duração" class="num">21 min</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card" aria-labelledby="h-avisos">
+      <div class="card-head"><h2 id="h-avisos">Avisos, toast e modal</h2></div>
+      <div class="stack">
+        <p class="notice warning">Os limiares ainda são provisórios.</p>
+        <p class="notice error">Não foi possível falar com o sensor.</p>
+        <p class="notice success">Sensor associado ao Simut.</p>
+        <div class="empty-state"><span>Sem dados neste período</span></div>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn" type="button" id="tInfo">Toast</button>
+        <button class="btn" type="button" id="tProg">Toast com progresso</button>
+        <button class="btn" type="button" id="mConfirm">Modal de confirmação</button>
+        <button class="btn" type="button" id="mPrompt">Modal com campo</button>
+        <button class="btn danger" type="button" id="mDanger">Modal destrutivo</button>
+      </div>
+      <p class="small muted" id="modalOut" aria-live="polite"></p>
+    </section>
+
+    <div id="chartsDemo"></div>
+  </main>
+
+  <script type="module">
+    import { badge, ORIGINS } from "../js/ui/badge.js?v=10";
+    import { toast } from "../js/ui/toast.js?v=10";
+    import { confirmModal, promptModal } from "../js/ui/modal.js?v=10";
+
+    const colors = ["--color-teal", "--color-green", "--color-sage", "--color-bg", "--color-surface", "--color-muted", "--color-border",
+      "--color-text", "--color-text-2", "--color-success", "--color-warning", "--color-error", "--color-warning-text", "--color-error-text",
+      "--cat-rest", "--cat-light", "--cat-vig", "--cat-none"];
+    const cs = getComputedStyle(document.documentElement);
+    document.getElementById("swatches").innerHTML = colors.map((c) =>
+      `<div class="swatch"><div style="background:var(${c})"></div><p class="mono">${c}<br>${cs.getPropertyValue(c).trim()}</p></div>`).join("");
+
+    const b = document.getElementById("badges");
+    for (const k of Object.keys(ORIGINS)) b.append(badge(k));
+    document.getElementById("statBadge").append(badge("processado", { detail: "Janelas de 60 s, 32 Hz, limiares 40 e 250 mg." }));
+
+    for (const group of ["chipDemo", "optDemo"]) {
+      const g = document.getElementById(group);
+      g.addEventListener("click", (e) => {
+        const t = e.target.closest('[role="radio"]');
+        if (!t) return;
+        g.querySelectorAll('[role="radio"]').forEach((x) => x.setAttribute("aria-checked", String(x === t)));
+      });
+    }
+
+    const out = document.getElementById("modalOut");
+    document.getElementById("tInfo").onclick = () => toast("Sensor Persono-8154CC associado ao Simut.", { kind: "success" });
+    document.getElementById("tProg").onclick = () => {
+      const t = toast("Sincronizando sensor...", { persistent: true, progress: 0 });
+      let p = 0;
+      const iv = setInterval(() => {
+        p += 20; t.progress(p, `Baixando: ${p * 5} pacotes de ~500`);
+        if (p >= 100) { clearInterval(iv); t.update("Pronto: 500 pacotes salvos.", { kind: "success", timeout: 3000 }); }
+      }, 400);
+    };
+    document.getElementById("mConfirm").onclick = async () => {
+      out.textContent = `Resposta: ${await confirmModal("Trocar os limiares para leve 45 mg e intenso 230 mg?", { title: "Aplicar limiares", confirmLabel: "Aplicar" })}`;
+    };
+    document.getElementById("mPrompt").onclick = async () => {
+      const v = await promptModal("Código das marcações", { title: "Colar marcações", placeholder: "SIMUT1:...", mono: true,
+        validate: (x) => (x.trim().startsWith("SIMUT1:") ? "" : "O código começa com SIMUT1:") });
+      out.textContent = `Resposta: ${v === null ? "cancelado" : v}`;
+    };
+    document.getElementById("mDanger").onclick = async () => {
+      out.textContent = `Resposta: ${await confirmModal("Apagar todos os dados guardados neste navegador? A nuvem não é afetada.", { title: "Apagar dados deste aparelho", confirmLabel: "Apagar", danger: true })}`;
+    };
+  </script>
+</body>
+</html>
