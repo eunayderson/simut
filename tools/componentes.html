@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="../css/tokens.css?v=10">
   <link rel="stylesheet" href="../css/base.css?v=10">
   <link rel="stylesheet" href="../css/components.css?v=10">
+  <link rel="stylesheet" href="../css/pages.css?v=10">
   <style>
     .cat { max-width: 1100px; margin: 0 auto; padding: 24px 16px 96px; display: grid; gap: 24px; }
     .cat > header p { margin: 4px 0 0; }
@@ -160,13 +161,66 @@
       <p class="small muted" id="modalOut" aria-live="polite"></p>
     </section>
 
-    <div id="chartsDemo"></div>
+    <section class="card" aria-labelledby="h-graficos">
+      <div class="card-head">
+        <div>
+          <h2 id="h-graficos">Gráficos</h2>
+          <p class="card-sub" id="dataSource">Dados sintéticos de demonstração (não são medições reais).</p>
+        </div>
+        <div class="card-tools">
+          <button class="btn sm" type="button" id="useSynthetic" aria-pressed="true">Sintéticos</button>
+          <button class="btn sm" type="button" id="useReal" aria-pressed="false">Dados reais deste navegador</button>
+        </div>
+      </div>
+      <div class="stack">
+        <div>
+          <div class="card-head" style="margin-bottom:8px">
+            <div><h3 id="h-acto">Actograma</h3><p class="card-sub">Atividade por janela de 60 s, últimos <span id="actoDays">7</span> dias, hoje embaixo</p></div>
+            <div class="chips" role="radiogroup" aria-label="Janela do actograma" id="actoWin">
+              <button class="chip" type="button" role="radio" aria-checked="true" data-days="7">7 dias</button>
+              <button class="chip" type="button" role="radio" aria-checked="false" data-days="14">14 dias</button>
+            </div>
+          </div>
+          <div id="actoDemo"></div>
+          <ul class="legend">
+            <li><span class="sw rest"></span>Repouso</li>
+            <li><span class="sw light"></span>Leve</li>
+            <li><span class="sw vig"></span>Intenso</li>
+            <li><span class="sw none"></span>Sem dados</li>
+            <li><span class="sw line"></span>Agora</li>
+          </ul>
+          <p class="small muted" id="actoState" aria-live="polite"></p>
+          <button class="btn sm" type="button" id="actoClear">Limpar seleção</button>
+        </div>
+        <div class="demo-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start">
+          <div>
+            <h3>Tendência</h3>
+            <p class="card-sub">Minutos ativos por dia, últimos <span id="trendDays">7</span> dias, janelas de 60 s</p>
+            <div class="chips" role="radiogroup" aria-label="Período da tendência" id="trendWin" style="margin:8px 0">
+              <button class="chip" type="button" role="radio" aria-checked="true" data-days="7">7 dias</button>
+              <button class="chip" type="button" role="radio" aria-checked="false" data-days="14">14 dias</button>
+            </div>
+            <div id="trendDemo"></div>
+          </div>
+          <div>
+            <h3>Perfil de 24 h</h3>
+            <p class="card-sub">Intensidade média (mg) por faixa de 30 min, últimos 7 dias</p>
+            <div id="profDemo"></div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script type="module">
     import { badge, ORIGINS } from "../js/ui/badge.js?v=10";
     import { toast } from "../js/ui/toast.js?v=10";
     import { confirmModal, promptModal } from "../js/ui/modal.js?v=10";
+    import { actogramRows, trend, profile24, buildEpochs, classify } from "../js/analysis.js?v=10";
+    import { loadSyncs, loadSettings } from "../js/store.js?v=10";
+    import { createActogram } from "../js/charts/actogram.js?v=10";
+    import { createTrend } from "../js/charts/trend.js?v=10";
+    import { createProfile24 } from "../js/charts/profile24.js?v=10";
 
     const colors = ["--color-teal", "--color-green", "--color-sage", "--color-bg", "--color-surface", "--color-muted", "--color-border",
       "--color-text", "--color-text-2", "--color-success", "--color-warning", "--color-error", "--color-warning-text", "--color-error-text",
@@ -208,6 +262,89 @@
     };
     document.getElementById("mDanger").onclick = async () => {
       out.textContent = `Resposta: ${await confirmModal("Apagar todos os dados guardados neste navegador? A nuvem não é afetada.", { title: "Apagar dados deste aparelho", confirmLabel: "Apagar", danger: true })}`;
+    };
+
+    // ---------- gráficos ----------
+    const settings = loadSettings();
+    const dayStart = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return dayStart(d); };
+
+    // Gerador determinístico: downloads esparsos de ~20 min, alguns dias sem dados, repouso longo à noite.
+    function synthetic() {
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      const today = dayStart(Date.now()), out = [];
+      const add = (t0, minutes, pick) => { for (let m = 0; m < minutes; m++) { const mg = pick(m); out.push({ t: t0 + m * 60000, mg, cls: classify(mg, settings) }); } };
+      for (let i = 13; i >= 0; i--) {
+        if ([2, 5, 9].includes(i)) continue; // dias sem dados
+        const day = addDays(today, -i);
+        if (i % 4 === 1) add(day + 1 * 3600000, 190, () => 5 + rnd() * 20); // repouso noturno longo (zzz)
+        const n = 1 + Math.floor(rnd() * 3);
+        for (let k = 0; k < n; k++) {
+          const h = 7 + Math.floor(rnd() * 14);
+          const t0 = day + h * 3600000 + Math.floor(rnd() * 40) * 60000;
+          if (i === 0 && t0 + 25 * 60000 > Date.now()) continue;
+          add(t0, 20 + Math.floor(rnd() * 6), (m) => (m > 6 && m < 12 ? 120 + rnd() * 250 : rnd() < 0.3 ? 50 + rnd() * 100 : 5 + rnd() * 30));
+        }
+      }
+      return out.sort((a, b) => a.t - b.t);
+    }
+
+    let epochs = synthetic();
+    let actoDaysN = 7, trendDaysN = 7, selectedDay = dayStart(Date.now());
+    const actoState = document.getElementById("actoState");
+    const acto = createActogram(document.getElementById("actoDemo"), {
+      onSelectDay: (d) => { selectedDay = d; actoState.textContent = `Dia selecionado: ${new Date(d).toLocaleDateString("pt-BR")}`; refresh(false); },
+      onSelectRange: (r) => {
+        if (!r) { actoState.textContent = "Seleção limpa."; return; }
+        const win = epochs.filter((e) => e.t >= r.from && e.t < r.to);
+        const c = { rest: 0, light: 0, vig: 0 }; for (const e of win) c[e.cls]++;
+        const span = Math.round((r.to - r.from) / 60000);
+        actoState.textContent = `Período ${new Date(r.from).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} a ${new Date(r.to).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}: repouso ${c.rest} min, leve ${c.light} min, intenso ${c.vig} min, cobertura ${win.length} de ${span} min.`;
+      },
+    });
+    const tr = createTrend(document.getElementById("trendDemo"), { onSelectDay: (d) => { selectedDay = d; refresh(); } });
+    const pf = createProfile24(document.getElementById("profDemo"));
+
+    function refresh(updateActo = true) {
+      const t0 = performance.now();
+      const today = Date.now();
+      if (updateActo) acto.update({ rows: actogramRows(epochs, today, settings, actoDaysN), selectedDay, epochSec: settings.epoch });
+      const t1 = performance.now();
+      tr.update({ rows: trend(epochs, today, settings, trendDaysN), selectedDay });
+      const from = addDays(dayStart(today), -6);
+      pf.update({
+        period: profile24(epochs, { from, to: addDays(dayStart(today), 1), binMin: 30 }),
+        day: profile24(epochs, { from: selectedDay, to: addDays(selectedDay, 1), binMin: 30 }),
+        periodLabel: "últimos 7 dias", dayLabel: new Date(selectedDay).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      });
+      window.__chartTimes = { actogramMs: t1 - t0, totalMs: performance.now() - t0 };
+    }
+    refresh();
+
+    const radio = (groupId, fn) => {
+      const g = document.getElementById(groupId);
+      g.addEventListener("click", (e) => {
+        const t = e.target.closest('[role="radio"]'); if (!t) return;
+        g.querySelectorAll('[role="radio"]').forEach((x) => x.setAttribute("aria-checked", String(x === t)));
+        fn(Number(t.dataset.days));
+      });
+    };
+    radio("actoWin", (d) => { actoDaysN = d; document.getElementById("actoDays").textContent = d; refresh(); });
+    radio("trendWin", (d) => { trendDaysN = d; document.getElementById("trendDays").textContent = d; refresh(); });
+    document.getElementById("actoClear").onclick = () => acto.clearSelection();
+
+    const src = document.getElementById("dataSource");
+    const setPressed = (real) => { document.getElementById("useReal").setAttribute("aria-pressed", String(real)); document.getElementById("useSynthetic").setAttribute("aria-pressed", String(!real)); };
+    document.getElementById("useSynthetic").onclick = () => { epochs = synthetic(); setPressed(false); src.textContent = "Dados sintéticos de demonstração (não são medições reais)."; refresh(); };
+    document.getElementById("useReal").onclick = async () => {
+      try {
+        const syncs = await loadSyncs();
+        const r = buildEpochs(syncs, settings);
+        epochs = r.epochs; setPressed(true);
+        src.textContent = `Dados reais guardados neste navegador: ${syncs.length} downloads, ${r.epochs.length} janelas (todos os animais).`;
+        refresh();
+      } catch (e) { src.textContent = `Não consegui ler os dados deste navegador: ${e.message}`; }
     };
   </script>
 </body>

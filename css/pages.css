@@ -1,0 +1,49 @@
+/* Estilos de páginas e gráficos. Depende de tokens.css, base.css e components.css. */
+
+/* ---------- Gráficos (actograma, tendência, perfil 24 h) ---------- */
+.chart { width: 100%; min-width: 0; }
+.chart-fig { margin: 0; min-width: 0; }
+.chart-box { position: relative; width: 100%; min-width: 0; touch-action: pan-y; }
+.chart-svg { display: block; width: 100%; height: auto; overflow: visible; font-family: var(--font-sans); user-select: none; -webkit-user-select: none; }
+.chart-svg:focus { outline: none; }
+.chart-svg:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 4px; border-radius: var(--radius-sm); }
+.chart-svg .grid { stroke: var(--color-muted); stroke-width: 1; }
+.chart-svg .axis { fill: var(--color-text-2); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart-svg .axis.unit { font-size: 10px; }
+.chart-svg .empty-label { fill: var(--color-text); font-size: 13px; font-weight: 500; paint-order: stroke; stroke: var(--color-surface); stroke-width: 4px; }
+.chart-svg .col-sel { fill: var(--color-success-bg); opacity: .6; }
+.chart-svg .col-active { fill: var(--color-teal); opacity: .07; }
+.chart-sel, .chart-info { margin: var(--sp-2) 0 0; color: var(--color-text); }
+.chart-info { padding: var(--sp-2) var(--sp-3); background: var(--color-bg); border-radius: var(--radius-sm); }
+.chart-legend { margin-top: var(--sp-2); }
+
+/* Actograma */
+.acto .row-label { fill: var(--color-text-2); font-family: var(--font-mono); font-size: 11px; }
+.acto .row-label.sel { fill: var(--color-teal); font-weight: 600; }
+.acto .row-bg { stroke: var(--color-border); stroke-width: .5; }
+.acto .row-sel { fill: none; stroke: var(--color-teal); stroke-width: 2; rx: 3; pointer-events: none; }
+.acto .block { cursor: pointer; }
+.acto .block:focus { outline: none; }
+.acto .block:focus-visible rect { stroke: var(--color-teal); stroke-width: 3; }
+.acto .block:hover rect { filter: brightness(.92); }
+.acto .zzz { fill: var(--color-teal); font-size: 11px; font-weight: 600; letter-spacing: .05em; pointer-events: none; }
+.acto .now-line { stroke: var(--color-text); stroke-width: 2; pointer-events: none; }
+.acto .range { fill: var(--color-teal); fill-opacity: .14; stroke: var(--color-teal); stroke-width: 1.5; stroke-dasharray: 4 3; pointer-events: none; }
+
+/* Tendência */
+.trend .trend-line { fill: none; stroke: var(--color-green); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.trend .trend-dot { fill: var(--color-green); stroke: var(--color-surface); stroke-width: 2; }
+.trend .trend-dot.active { fill: var(--color-teal); }
+.trend .cov-bg { opacity: .9; }
+.trend .cov { fill: var(--color-text-2); }
+
+/* Perfil 24 h */
+.profile24 .prof-area { fill: var(--color-sage); fill-opacity: .75; stroke: var(--cat-rest); stroke-width: 1; }
+.profile24 .prof-day { fill: none; stroke: var(--color-green); stroke-width: 2.5; stroke-linejoin: round; }
+.sw.area { background: var(--color-sage); }
+.sw.dayline { height: 3px; border-radius: 2px; background: var(--color-green); }
+
+@media (max-width: 767px) {
+  .chart-svg .axis { font-size: 10px; }
+  .acto .row-label { font-size: 10px; }
+}
