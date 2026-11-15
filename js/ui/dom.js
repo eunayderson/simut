@@ -114,3 +114,17 @@ export function icon(name, cls = "") {
   span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${cls ? ` class="${cls}"` : ""}>${ICONS[name] || ""}</svg>`;
   return span.firstElementChild;
 }
+
+// Contador de caracteres para campos com maxlength: aparece perto do limite e avisa quando
+// chega nele (o navegador corta o excesso, inclusive ao colar, sem avisar).
+export function charCounter(input, max = Number(input.maxLength) || 60, near = 10) {
+  const out = h("p", { class: "help counter", "aria-live": "polite" });
+  const update = () => {
+    const n = input.value.length;
+    out.textContent = n >= max ? `Limite de ${max} caracteres atingido.` : n >= max - near ? `${n} de ${max} caracteres` : "";
+    out.hidden = !out.textContent;
+  };
+  input.addEventListener("input", update);
+  update();
+  return out;
+}

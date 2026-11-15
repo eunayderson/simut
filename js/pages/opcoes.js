@@ -1,7 +1,7 @@
 // Opções (plano, 5.7): perfil, este animal (editar, arquivar), nuvem, métricas do onboarding,
 // diagnóstico, zona de atenção (apagar dados deste aparelho) e sobre.
 
-import { h, icon, uniqueId } from "../ui/dom.js?v=10";
+import { h, icon, uniqueId, charCounter } from "../ui/dom.js?v=10";
 import { pageHead, card } from "../ui/page.js?v=10";
 import { on, currentAnimal } from "../state.js?v=10";
 import { mount as mountCloudPanel } from "../ui/cloud-panel.js?v=10";
@@ -130,6 +130,7 @@ export function mount(el, ctx) {
     const routine = Object.entries(ROUTINE).map(([k, r]) => [k, sel(k, [["", "Não informado"], ...r.options], ans[k] || "")]);
 
     const otherF = fld("Qual animal?", other, { hidden: species.value !== "outro" });
+    otherF.append(charCounter(other));
     const approxF = h("div", { class: "field", hidden: ageMode.value !== "aprox" }, h("label", { for: ageValue.id }, "Idade aproximada"), h("div", { class: "ob-inline" }, ageValue, ageUnit));
     const birthF = fld("Data de nascimento", birth, { hidden: ageMode.value !== "nasc", optional: false });
     birthF.append(birthErr);
@@ -147,9 +148,9 @@ export function mount(el, ctx) {
 
     animalForm.replaceChildren(
       h("div", { class: "form-grid" },
-        h("div", { class: "field" }, h("label", { for: name.id }, "Nome"), name, nameErr),
+        h("div", { class: "field" }, h("label", { for: name.id }, "Nome"), name, charCounter(name), nameErr),
         fld("Espécie", species, { optional: false }), otherF,
-        h("div", { class: "field" }, h("label", { for: breed.id }, "Raça", h("span", { class: "optional" }, " (opcional)")), breed, breedList, h("p", { class: "help" }, "Aceita SRD, Mestiço ou Não sei.")),
+        h("div", { class: "field" }, h("label", { for: breed.id }, "Raça", h("span", { class: "optional" }, " (opcional)")), breed, breedList, h("p", { class: "help" }, "Aceita SRD, Mestiço ou Não sei."), charCounter(breed)),
         fld("Idade", ageMode), approxF, birthF,
         h("div", { class: "field" }, h("label", { for: weight.id }, "Peso em kg", h("span", { class: "optional" }, " (opcional)")), weight, weightErr),
         fld("Sexo biológico", sex), neutF),

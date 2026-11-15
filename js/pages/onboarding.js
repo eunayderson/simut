@@ -8,7 +8,7 @@
 // Rascunho salvo a cada resposta (simut.onboardingDraft): voltar preserva, recarregar retoma.
 // Eventos de métrica (js/metrics.js) em cada tela, conclusão e saída da página.
 
-import { h, icon, uniqueId } from "../ui/dom.js?v=10";
+import { h, icon, uniqueId, charCounter } from "../ui/dom.js?v=10";
 import { loadDraft, saveDraft, clearDraft, saveLastAnimal } from "../store.js?v=10";
 import { startSession, record } from "../metrics.js?v=10";
 import {
@@ -147,6 +147,7 @@ export function mount(el, ctx) {
       label ? h("label", { for: id }, label) : null,
       help ? h("p", { class: "help", id: helpId }, help) : null,
       input,
+      input.type === "text" && Number(input.maxLength) >= 40 ? charCounter(input) : null,
       h("p", { class: "error", id: errId, "aria-live": "polite" }, error ? icon("alert") : null, error || ""));
   }
 
