@@ -6,16 +6,39 @@ const DB = "simut";
 // registros antigos ficam como estão e são migrados na leitura (ver animals.js).
 const VERSION = 2;
 
+export const BLOCKED_MESSAGE = "Outra aba do Simut está aberta com uma versão antiga. Feche as outras abas do Simut e recarregue.";
+
+// Conexão única, reutilizada. Se outra aba pedir versão nova (versionchange), fecha na hora
+// para não travar o upgrade dela; a próxima leitura reabre. Se uma aba antiga segurar a versão
+// anterior (blocked), rejeita com mensagem clara em vez de ficar esperando para sempre.
+let conn = null;
 function open() {
-  return new Promise((resolve, reject) => {
+  if (conn) return conn;
+  let settled = false;
+  conn = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("syncs")) db.createObjectStore("syncs", { keyPath: "id" });
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      const drop = () => { if (conn === p) conn = null; };
+      db.onversionchange = () => { db.close(); drop(); };
+      db.onclose = drop;
+      if (settled) { db.close(); return; } // chegou depois do blocked: a próxima leitura abre de novo
+      settled = true;
+      resolve(db);
+    };
+    req.onerror = () => { settled = true; conn = null; reject(req.error); };
+    req.onblocked = () => {
+      if (settled) return;
+      settled = true; conn = null;
+      reject(new Error(BLOCKED_MESSAGE));
+    };
   });
+  const p = conn;
+  return p;
 }
 
 async function tx(mode, fn) {

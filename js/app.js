@@ -36,6 +36,7 @@ function showError(msg) {
   const b = $("errBanner");
   if (b) { b.hidden = false; b.textContent = `Erro: ${msg}`; }
 }
+function hideError() { const b = $("errBanner"); if (b) b.hidden = true; }
 window.addEventListener("error", (e) => showError(e.message));
 window.addEventListener("unhandledrejection", (e) => showError(e.reason?.message || String(e.reason)));
 
@@ -112,10 +113,18 @@ async function syncSensor({ withToast = false } = {}) {
 }
 
 // ---------- dados ----------
+// Devolve true se leu o armazenamento local.
 async function reload() {
+  let ok = true;
   try { state.syncs = await loadSyncs(); }
-  catch (e) { log(`armazenamento indisponível: ${e.message}`); state.syncs = []; }
+  catch (e) {
+    log(`armazenamento indisponível: ${e.message}`);
+    showError(`armazenamento local indisponível. ${e.message}`);
+    state.syncs = [];
+    ok = false;
+  }
   recompute();
+  return ok;
 }
 
 // Importa .bin gerado pelo script do Mac. Formato: repetição de [tamanho u16 LE][pacote].
@@ -262,7 +271,14 @@ on((reason) => {
     log(`painel iniciado (bluetooth: ${bt}${bt === "ok" ? "" : `, ${platformName()}`})`);
     emit("sensor");
   });
-  await reload();
+  // O roteador sobe mesmo se o armazenamento falhar ou demorar (ex.: aba antiga segurando o banco).
+  const loading = reload();
+  const slow = await Promise.race([loading.then(() => false), new Promise((r) => setTimeout(() => r(true), 3000))]);
+  if (slow) {
+    log("armazenamento local demorando, painel aberto sem os downloads");
+    showError("o armazenamento local está demorando. Se houver outra aba do Simut aberta, feche e recarregue.");
+    loading.then((ok) => { migrate(); if (ok) hideError(); });
+  }
   await pullCloudProfile();
   migrate();
   router = startRouter({
