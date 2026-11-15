@@ -83,3 +83,11 @@ Opcodes que existem (24 no total):
 | 70/71 | set / get `5e 00 00 5c 00 00` | par; parecem dois contadores (94 e 92) |
 
 Padrão: no bloco 0x6x/0x7x, opcode ímpar lê e o par anterior grava a mesma configuração.
+
+## Capacidade de cada download (analisado em 2026-11-15, dados reais)
+
+Dois downloads reais (14/11 e 15/11) cobriram exatamente os endereços `0x000000` a `0x01ffff`: **128 KB**, cerca de 530 a 545 pacotes. O valor anunciado na resposta do `40 00` (`1d 02` = 541) bate com isso.
+
+Decodificando: cerca de 41 mil amostras por download. Com 32 Hz, isso é **cerca de 21 minutos**. Contando o marcador `58 00` como 1 por segundo (mediana de 25 amostras entre marcadores), dá **20 a 26 minutos**. As duas estimativas concordam: no modo atual, o `40 00` entrega só os **últimos ~20 a 25 minutos** de movimento bruto (memória circular de 128 KB).
+
+Hipótese a testar: o parâmetro do `40` selecionaria outras regiões da memória (`40 01`, `40 02`...), ou outro comando/configuração ativaria um modo resumido (contagens por minuto) que cobre dias.
