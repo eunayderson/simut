@@ -1,4 +1,6 @@
-import { PersonoSensor, bluetoothSupport, hex } from "./ble.js?v=10";
+import { bluetoothSupport, hex } from "./ble.js?v=10";
+import { log, subscribe as onLog } from "./log.js?v=10";
+import { getSensor, run as runSync } from "./sync.js?v=10";
 import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings, loadAnimals, saveAnimals, loadProfile, migrateLastSync, getLastSync, setLastSync, clearLastSyncs } from "./store.js?v=10";
 import { migrateLocal, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { fmtMin, hhmm } from "./format.js?v=10";
@@ -19,16 +21,10 @@ window.addEventListener("error", (e) => showError(e.message));
 window.addEventListener("unhandledrejection", (e) => showError(e.reason?.message || String(e.reason)));
 
 // ---------- log ----------
-const logLines = [];
-function log(msg) {
-  const line = `${new Date().toLocaleTimeString("pt-BR")}  ${msg}`;
-  logLines.push(line);
-  if (logLines.length > 400) logLines.shift();
-  $("log").textContent = logLines.join("\n");
-}
+onLog((_, lines) => { $("log").textContent = lines.join("\n"); });
 
 // ---------- sensor ----------
-const sensor = new PersonoSensor(log);
+const sensor = getSensor(log);
 
 function setPill(stateName, text) {
   $("sensorPill").dataset.state = stateName;
@@ -40,53 +36,31 @@ function setConnectedUi(on) {
 }
 sensor.addEventListener("disconnect", () => setConnectedUi(false));
 
-async function refreshSensorInfo() {
-  try {
-    const clock = await sensor.readClock();
-    $("kvClock").textContent = clock ? clock.toLocaleString("pt-BR") : "-";
-    const info = await sensor.readInfo();
-    const status = await sensor.readStatus();
-    if (info?.length) $("kvLevel").textContent = `${info[info.length - 1]}`;
-    return { clock, info: info ? hex(info) : null, status: status ? hex(status) : null };
-  } catch (e) { log(`erro lendo info: ${e.message}`); return { clock: null }; }
-}
-
-// Um toque só: conecta, baixa, salva e desconecta. Ficar conectado gasta bateria do sensor.
+// Um toque só: conecta, baixa, salva e desconecta (js/sync.js). Ficar conectado gasta bateria do sensor.
 $("btnConnect").addEventListener("click", async () => {
   const bar = $("progressBar"), txt = $("progressText");
   try {
-    setPill("busy", "Procurando sensor...");
-    if (!sensor.connected) await sensor.connect();
-    setConnectedUi(true);
-    $("progressWrap").hidden = false;
-    bar.style.width = "0%"; txt.textContent = "Lendo o sensor...";
-    const snap = await refreshSensorInfo();
-    const clockBefore = snap.clock;
-    const t0 = Date.now();
-    txt.textContent = "Baixando...";
-    const res = await sensor.download({
-      onProgress: ({ packets, bad, expected }) => {
-        if (expected) bar.style.width = `${Math.min(100, (packets / expected) * 100)}%`;
-        txt.textContent = `Baixando: ${packets} pacotes${expected ? ` de ~${expected}` : ""}${bad ? `, ${bad} com erro` : ""}`;
+    await runSync({
+      animalId: LEGACY_ANIMAL_ID,
+      sensor,
+      onState: (st, text) => {
+        if (st === "searching") setPill("busy", text);
+        else setConnectedUi(st === "syncing");
+      },
+      onProgress: ({ pct, text }) => {
+        $("progressWrap").hidden = false;
+        if (pct !== null) bar.style.width = `${pct}%`;
+        txt.textContent = text;
+      },
+      onInfo: ({ clock, level }) => {
+        $("kvClock").textContent = clock ? clock.toLocaleString("pt-BR") : "-";
+        if (level !== null) $("kvLevel").textContent = `${level}`;
       },
     });
-    const endAt = (clockBefore ? clockBefore.getTime() : t0) + (Date.now() - t0);
-    // salva mesmo sem pacotes: o registro do nível ao longo do tempo também é dado
-    await saveSync({ id: Date.now(), endAt, source: "bluetooth", packets: res.packets,
-      sensor: { info: snap.info, status: snap.status, clock: clockBefore ? clockBefore.getTime() : null } });
-    bar.style.width = "100%";
-    txt.textContent = res.packets.length
-      ? `Pronto: ${res.packets.length} pacotes salvos${res.bad ? ` (${res.bad} descartados por erro)` : ""}${res.interrupted ? ". A conexão caiu no meio, salvei o que chegou." : "."}`
-      : "O sensor não tinha dados novos.";
-    setLastSync(LEGACY_ANIMAL_ID);
     await reload();
     cloudSync();
   } catch (e) {
-    log(`erro na sincronização: ${e.message}`);
     if (e.name !== "NotFoundError") { $("progressWrap").hidden = false; txt.textContent = `Erro: ${e.message}`; }
-  } finally {
-    sensor.disconnect();
-    setConnectedUi(false);
   }
 });
 
@@ -104,7 +78,7 @@ $("fileBin").addEventListener("change", async (ev) => {
   }
   if (!packets.length) { alert("Arquivo sem pacotes reconhecidos."); return; }
   const endAt = f.lastModified || Date.now();
-  await saveSync({ id: Date.now(), endAt, source: `arquivo ${f.name}`, packets });
+  await saveSync({ id: Date.now(), endAt, source: `arquivo ${f.name}`, packets, animalId: LEGACY_ANIMAL_ID });
   log(`importado ${f.name}: ${packets.length} pacotes`);
   ev.target.value = "";
   await reload();
