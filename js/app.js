@@ -8,7 +8,7 @@ import { saveSync, loadSyncs, clearAll, saveSettings, migrateLastSync, clearLast
 import { migrateLocal, mergeAnimals, mergeProfile, findAnimal, sensorDecision, associateSensor, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
 import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
 import { saveMarks } from "./validation.js?v=10";
-import { reconcile } from "./cloud-sync.js?v=10";
+import { reconcile, coalesce } from "./cloud-sync.js?v=10";
 import { getKey, syncAll, mergeMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
 import { state, on, emit, recompute, setAnimal, currentAnimal, upsertAnimal, setAnimals, setProfile } from "./state.js?v=10";
 import { startRouter, focusHeading, parse, guard } from "./router.js?v=10";
@@ -180,10 +180,11 @@ function cloudUi(text, ok = null) {
   state.cloud = { text, ok };
   emit("cloud");
 }
-let cloudAgain = false;
-async function cloudSync() {
+// Fila de 1 (cloud-sync.coalesce): pedido feito durante outro sync roda de novo logo depois.
+// Depois de cada await, o resultado é juntado de novo com o estado atual (cloud-sync.reconcile):
+// o que a pessoa fez no meio (marcar, editar, adicionar animal) não é revertido.
+const cloudSync = coalesce(async () => {
   if (!state.cloudKey) { cloudUi("Desligada"); return; }
-  if (state.cloudBusy) { cloudAgain = true; return; }
   state.cloudBusy = true;
   cloudUi("Sincronizando...");
   try {
@@ -194,11 +195,16 @@ async function cloudSync() {
     state.marks.splice(0, state.marks.length, ...reconcile({ marks: state.marks }, { marks }).marks);
     saveMarks(state.marks);
     const pa = await syncProfileAndAnimals(state.cloudKey, { profile: state.profile, animals: state.animals }, log);
-    setAnimals(pa.animals);
-    if (pa.profile) setProfile(pa.profile);
+    const j = reconcile({ animals: state.animals, profile: state.profile }, { animals: pa.animals, profile: pa.profile });
+    setAnimals(j.animals);
+    if (j.profile) setProfile(j.profile);
     clearTimeout(pullRetry);
     setCloudPending(false);
-    saveOnboardingEvents(await mergeOnboarding(state.cloudKey, loadOnboardingEvents()));
+    const events = await mergeOnboarding(state.cloudKey, loadOnboardingEvents());
+    const ev = reconcile({ events: loadOnboardingEvents() }, { events });
+    saveOnboardingEvents(ev.events);
+    // mudou algo aqui durante o sync que ainda não subiu: mais uma rodada
+    if (j.toPush.length || j.pushProfile || ev.events.length !== events.length) cloudSync();
     if (r.down.length) await reload(); else emit("data");
     cloudUi(`Salva, ${r.total} ${r.total === 1 ? "download" : "downloads"} (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`, true);
   } catch (e) {
@@ -206,9 +212,8 @@ async function cloudSync() {
     cloudUi(navigator.onLine ? `Erro: ${e.message}` : "Sem internet, tento de novo depois", false);
   } finally {
     state.cloudBusy = false;
-    if (cloudAgain) { cloudAgain = false; cloudSync(); }
   }
-}
+});
 window.addEventListener("online", () => cloudSync());
 
 // Com chave: traz perfil e animais da nuvem antes de decidir qualquer coisa (até 4 s).
