@@ -1,12 +1,13 @@
 import { bluetoothSupport, hex } from "./ble.js?v=10";
 import { log, subscribe as onLog } from "./log.js?v=10";
 import { getSensor, run as runSync } from "./sync.js?v=10";
-import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings, loadAnimals, saveAnimals, loadProfile, migrateLastSync, getLastSync, setLastSync, clearLastSyncs } from "./store.js?v=10";
-import { migrateLocal, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
+import { saveSync, loadSyncs, clearAll, loadSettings, saveSettings, loadAnimals, saveAnimals, loadProfile, saveProfile, migrateLastSync, getLastSync, clearLastSyncs } from "./store.js?v=10";
+import { migrateLocal, mergeAnimals, mergeProfile, LEGACY_ANIMAL_ID } from "./animals.js?v=10";
+import { load as loadOnboardingEvents, save as saveOnboardingEvents } from "./metrics.js?v=10";
 import { fmtMin, hhmm } from "./format.js?v=10";
 import { buildEpochs, daySummary, nightSummary, trend, toCsv, dayRuns, dayBouts } from "./analysis.js?v=10";
 import { loadMarks, saveMarks } from "./validation.js?v=10";
-import { getKey, syncAll, mergeMarks } from "./cloud.js?v=10";
+import { getKey, syncAll, mergeMarks, pullProfileAndAnimals, syncProfileAndAnimals, mergeOnboarding } from "./cloud.js?v=10";
 import { mount as mountValidation } from "./ui/validation-session.js?v=10";
 import { mount as mountCloudPanel } from "./ui/cloud-panel.js?v=10";
 
@@ -324,6 +325,10 @@ async function cloudSync() {
     for (const s of r.down) await saveSync(s);
     state.marks = await mergeMarks(state.cloudKey, state.marks);
     saveMarks(state.marks);
+    const pa = await syncProfileAndAnimals(state.cloudKey, { profile: state.profile, animals: state.animals }, log);
+    state.animals = pa.animals; saveAnimals(pa.animals);
+    if (pa.profile) { state.profile = pa.profile; saveProfile(pa.profile); }
+    saveOnboardingEvents(await mergeOnboarding(state.cloudKey, loadOnboardingEvents()));
     if (r.down.length) await reload(); else renderValidation();
     cloudUi(`Salva, ${r.total} ${r.total === 1 ? "download" : "downloads"} (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`, true);
   } catch (e) {
@@ -332,6 +337,19 @@ async function cloudSync() {
   } finally { state.cloudBusy = false; }
 }
 window.addEventListener("online", () => cloudSync());
+
+// Com chave: traz perfil e animais da nuvem antes de decidir qualquer coisa (até 4 s).
+// Um aparelho novo aberto pelo link já vê o que foi cadastrado em outro. Se falhar, segue com o local.
+async function pullCloudProfile() {
+  if (!state.cloudKey) return;
+  try {
+    const r = await pullProfileAndAnimals(state.cloudKey, { timeoutMs: 4000 });
+    const a = mergeAnimals(state.animals, r.animals);
+    state.animals = a.animals; saveAnimals(a.animals);
+    const p = mergeProfile(state.profile, r.profile);
+    if (p.profile) { state.profile = p.profile; saveProfile(p.profile); }
+  } catch (e) { log(`nuvem (perfil e animais): ${e.message}`); }
+}
 
 // Dados antigos (sem animalId) pertencem ao Simut. Só cria o animal; nada é apagado.
 function migrate() {
@@ -348,6 +366,7 @@ function migrate() {
   if (bt !== "ok") showBtHelp(bt);
   log(`painel iniciado (bluetooth: ${bt})`);
   await reload();
+  await pullCloudProfile();
   migrate();
   cloudUi(state.cloudKey ? "Conectando..." : "Desligada");
   cloudSync();

@@ -97,3 +97,33 @@ export function animalSubtitle(a, now = Date.now()) {
   const age = ageLabel(a.age, now).replace(/^cerca de /, "");
   return [sp, breedLabel(a.breed), age].filter(Boolean).join(", ");
 }
+
+// ---------- junção com a nuvem (último a editar vence, por documento) ----------
+const stamp = (x) => Number(x?.updatedAt) || 0;
+
+// Junta animais locais e remotos por id. Devolve a lista final e os que precisam subir
+// (só existem aqui ou são mais novos aqui). Ordem: locais primeiro, depois os que só existem lá.
+export function mergeAnimals(local = [], remote = []) {
+  const rById = new Map(remote.filter((a) => a?.id).map((a) => [a.id, a]));
+  const animals = [], toPush = [];
+  const seen = new Set();
+  for (const l of local) {
+    if (!l?.id || seen.has(l.id)) continue;
+    seen.add(l.id);
+    const r = rById.get(l.id);
+    if (!r || stamp(l) > stamp(r)) { animals.push(l); toPush.push(l); }
+    else if (stamp(r) > stamp(l)) animals.push(r);
+    else animals.push(l);
+  }
+  for (const r of remote) if (r?.id && !seen.has(r.id)) { seen.add(r.id); animals.push(r); }
+  return { animals, toPush };
+}
+
+// Perfil: o mais novo vence. push = o local precisa subir.
+export function mergeProfile(local = null, remote = null) {
+  if (!local && !remote) return { profile: null, push: false };
+  if (!remote) return { profile: local, push: true };
+  if (!local) return { profile: remote, push: false };
+  if (stamp(local) > stamp(remote)) return { profile: local, push: true };
+  return { profile: stamp(remote) > stamp(local) ? remote : local, push: false };
+}

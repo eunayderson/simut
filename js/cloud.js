@@ -1,8 +1,17 @@
 // Nuvem (Firebase Firestore, plano gratuito). Sem login: o acesso é pela chave do Simut,
 // um código secreto guardado só nos aparelhos (nunca no repositório).
-// Estrutura: dogs/{chave}/syncs/{id}            -> { endAt, source, packets, chunks }
-//            dogs/{chave}/syncs/{id}/chunks/{i} -> { data: Bytes }  ([u16 tamanho][pacote] repetido)
-//            dogs/{chave}/meta/marks             -> { list: [{t, s}] }
+// Estrutura (o nome "dogs" fica por compatibilidade, vale também para gatos e outros):
+//   dogs/{chave}/syncs/{id}            -> { endAt, source, packets, chunks, sensor, at, animalId?, sensorName? }
+//   dogs/{chave}/syncs/{id}/chunks/{i} -> { data: Bytes }  ([u16 tamanho][pacote] repetido)
+//   dogs/{chave}/meta/marks            -> { list: [{t, s, a?}], at }
+//   dogs/{chave}/meta/profile          -> { name, createdAt, updatedAt, onboardingDone, onboardingFlow }
+//   dogs/{chave}/meta/onboarding       -> { events: [...], at }   (junta por id de evento, máximo 2000)
+//   dogs/{chave}/animals/{animalId}    -> animal completo (ver animals.js)
+// Documentos antigos nunca são reescritos: syncs só sobem quando não existem lá.
+
+import { mergeMarkLists } from "./validation.js?v=10";
+import { mergeAnimals, mergeProfile } from "./animals.js?v=10";
+import { mergeEvents } from "./metrics.js?v=10";
 
 const V = "11.0.2";
 const CONFIG = {
@@ -68,7 +77,23 @@ async function pushSync(key, sync) {
   for (let i = 0; i < chunks.length; i++) {
     await fs.setDoc(fs.doc(base, "chunks", String(i)), { data: fs.Bytes.fromUint8Array(chunks[i]) });
   }
-  await fs.setDoc(base, { endAt: sync.endAt, source: sync.source || "", packets: sync.packets.length, chunks: chunks.length, sensor: sync.sensor || null, at: Date.now() });
+  await fs.setDoc(base, syncMeta(sync, chunks.length, Date.now()));
+}
+
+// Metadado do sync na nuvem. animalId e sensorName só entram quando existem (docs novos).
+export function syncMeta(sync, chunks, at) {
+  const meta = { endAt: sync.endAt, source: sync.source || "", packets: sync.packets.length, chunks, sensor: sync.sensor || null, at };
+  if (sync.animalId) meta.animalId = sync.animalId;
+  if (sync.sensorName) meta.sensorName = sync.sensorName;
+  return meta;
+}
+
+// Sync local a partir do metadado e dos pacotes baixados (sem animalId = Simut, resolvido na leitura).
+export function syncFromMeta(id, meta, packets) {
+  const sync = { id: Number(id), endAt: meta.endAt, source: meta.source, sensor: meta.sensor || null, packets };
+  if (meta.animalId) sync.animalId = meta.animalId;
+  if (meta.sensorName) sync.sensorName = meta.sensorName;
+  return sync;
 }
 
 async function pullSync(key, id, meta) {
@@ -80,7 +105,7 @@ async function pullSync(key, id, meta) {
   }
   const raw = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
   let o = 0; for (const p of parts) { raw.set(p, o); o += p.length; }
-  return { id: Number(id), endAt: meta.endAt, source: meta.source, sensor: meta.sensor || null, packets: unpack(raw) };
+  return syncFromMeta(id, meta, unpack(raw));
 }
 
 // Sobe o que só existe aqui, baixa o que só existe lá. Retorna os syncs novos baixados.
@@ -99,16 +124,12 @@ export async function syncAll(key, localSyncs, log = () => {}) {
   return { up, down, total: remote.size + up };
 }
 
+// Junta as marcações daqui com as de lá (sem repetir segundo, estado e animal) e grava a lista.
 export async function mergeMarks(key, localMarks) {
   await init();
   const ref = fs.doc(db, "dogs", key, "meta", "marks");
   const snap = await fs.getDoc(ref);
-  const all = [...(snap.exists() ? snap.data().list : []), ...localMarks];
-  const seen = new Set(), merged = [];
-  for (const m of all.sort((a, b) => a.t - b.t)) {
-    const k = `${Math.round(m.t / 1000)}:${m.s}`;
-    if (!seen.has(k)) { seen.add(k); merged.push({ t: m.t, s: m.s }); }
-  }
+  const merged = mergeMarkLists(snap.exists() ? snap.data().list || [] : [], localMarks);
   await fs.setDoc(ref, { list: merged, at: Date.now() });
   return merged;
 }
@@ -116,4 +137,64 @@ export async function mergeMarks(key, localMarks) {
 export async function replaceMarks(key, marks) {
   await init();
   await fs.setDoc(fs.doc(db, "dogs", key, "meta", "marks"), { list: marks, at: Date.now() });
+}
+
+// ---------- perfil, animais e métricas do onboarding ----------
+// Firestore não aceita undefined: limpa antes de gravar.
+const clean = (o) => JSON.parse(JSON.stringify(o));
+
+function withTimeout(promise, ms, what) {
+  if (!ms) return promise;
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${what}: tempo esgotado (${ms} ms)`)), ms); }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+// Lê perfil e animais da nuvem. Usado no início (antes de decidir se mostra o onboarding).
+export function pullProfileAndAnimals(key, { timeoutMs = 4000 } = {}) {
+  return withTimeout((async () => {
+    await init();
+    const [p, a] = await Promise.all([
+      fs.getDoc(fs.doc(db, "dogs", key, "meta", "profile")),
+      fs.getDocs(fs.collection(db, "dogs", key, "animals")),
+    ]);
+    return { profile: p.exists() ? p.data() : null, animals: a.docs.map((d) => ({ ...d.data(), id: d.id })) };
+  })(), timeoutMs, "nuvem (perfil)");
+}
+
+export async function pushProfile(key, profile) {
+  await init();
+  await fs.setDoc(fs.doc(db, "dogs", key, "meta", "profile"), clean(profile));
+}
+
+export async function pushAnimal(key, animal) {
+  await init();
+  if (!animal?.id) throw new Error("animal sem id");
+  await fs.setDoc(fs.doc(db, "dogs", key, "animals", animal.id), clean({ ...animal, updatedAt: animal.updatedAt || Date.now() }));
+}
+
+// Junta perfil e animais daqui e de lá (o mais novo vence) e sobe o que for mais novo aqui.
+export async function syncProfileAndAnimals(key, { profile = null, animals = [] } = {}, log = () => {}) {
+  const remote = await pullProfileAndAnimals(key, { timeoutMs: 0 });
+  const a = mergeAnimals(animals, remote.animals);
+  for (const x of a.toPush) await pushAnimal(key, x);
+  const p = mergeProfile(profile, remote.profile);
+  if (p.push && p.profile) await pushProfile(key, p.profile);
+  log(`nuvem: perfil ${p.push ? "enviado" : "ok"}, ${a.toPush.length} animal(is) enviado(s), ${a.animals.length} no total`);
+  return { profile: p.profile, animals: a.animals };
+}
+
+// Junta os eventos do onboarding daqui e de lá (por id, máximo 2000) e grava a lista.
+export async function mergeOnboarding(key, localEvents = []) {
+  await init();
+  const ref = fs.doc(db, "dogs", key, "meta", "onboarding");
+  const snap = await fs.getDoc(ref);
+  const remote = snap.exists() ? snap.data().events || [] : [];
+  const merged = mergeEvents(remote, localEvents);
+  const remoteIds = new Set(remote.map((e) => e.id));
+  if (merged.length === remote.length && merged.every((e) => remoteIds.has(e.id))) return merged; // nada novo: não grava
+  await fs.setDoc(ref, clean({ events: merged, at: Date.now() }));
+  return merged;
 }

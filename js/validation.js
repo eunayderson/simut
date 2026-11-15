@@ -105,6 +105,20 @@ export const marksOf = (marks, animalId) => marks.filter((m) => markAnimal(m) ==
 // Chave de deduplicação: segundo, estado e animal (ausente conta como Simut).
 export const markKey = (m) => `${Math.round(m.t / 1000)}:${m.s}:${markAnimal(m)}`;
 
+// Junta listas de marcações sem repetir (markKey), em ordem de tempo.
+// Mantém o campo a só quando existe: marcações antigas continuam sem ele.
+export function mergeMarkLists(...lists) {
+  const all = lists.flat().filter((m) => m && Number.isFinite(m.t) && m.s).sort((a, b) => a.t - b.t);
+  const seen = new Set(), out = [];
+  for (const m of all) {
+    const k = markKey(m);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(m.a ? { t: m.t, s: m.s, a: m.a } : { t: m.t, s: m.s });
+  }
+  return out;
+}
+
 // Sessões de validação concluídas: cada marcação "fim" fecha uma sessão (as marcações
 // desde o "fim" anterior). Conta como concluída se comparou pelo menos minWindows janelas.
 // marks e epochs devem ser do mesmo animal.
