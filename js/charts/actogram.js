@@ -25,13 +25,21 @@ export function createActogram(host, { onSelectDay = () => {}, onSelectRange = (
       <div class="chart-box"></div>
       <p class="chart-sel small" hidden></p>
       <p class="chart-info small" aria-live="polite" hidden></p>
-      <div class="visually-hidden"><table><caption></caption><thead><tr><th>Início</th><th>Fim</th><th>Classe</th><th>Intensidade média (mg)</th></tr></thead><tbody></tbody></table></div>
+      <div class="visually-hidden reveal-on-focus"><table><caption></caption><thead><tr><th>Início</th><th>Fim</th><th>Classe</th><th>Intensidade média (mg)</th></tr></thead><tbody></tbody></table></div>
     </figure>`;
   const box = host.querySelector(".chart-box");
   const cap = host.querySelector("figcaption");
   const selP = host.querySelector(".chart-sel");
   const info = host.querySelector(".chart-info");
   const table = host.querySelector("table");
+  const TABLE_LIMIT = 30;
+  let tableDay = null, tableAll = false;
+  table.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-more]")) return;
+    tableAll = true; describe();
+    table.querySelector("tbody tr:nth-child(" + (TABLE_LIMIT + 1) + ") td")?.setAttribute("tabindex", "-1");
+    table.querySelector("tbody tr:nth-child(" + (TABLE_LIMIT + 1) + ") td")?.focus();
+  });
   const tip = makeTooltip(box);
 
   let data = { rows: [], selectedDay: null, range: null, epochSec: 60, now: Date.now() };
@@ -128,9 +136,14 @@ export function createActogram(host, { onSelectDay = () => {}, onSelectRange = (
         (interactive ? "Use as setas para percorrer os trechos e Enter para selecionar." : "")
       : `${label}: sem dias para mostrar.`;
     const target = rows.find((r) => r.day === data.selectedDay) || rows[rows.length - 1];
+    if (target?.day !== tableDay) { tableDay = target?.day ?? null; tableAll = false; }
     table.querySelector("caption").textContent = target ? `Trechos de ${dm(target.day)}` : "";
-    table.querySelector("tbody").innerHTML = target && target.runs.length
-      ? target.runs.map((u) => `<tr><td>${hhmm(u.from)}</td><td>${hhmm(u.to)}</td><td>${CLS_LABEL[u.cls]}</td><td>${Math.round(u.mg)}</td></tr>`).join("")
+    // dia com muitos trechos: começa com os primeiros e oferece mostrar o resto
+    const runs = target?.runs || [];
+    const shown = tableAll ? runs : runs.slice(0, TABLE_LIMIT);
+    table.querySelector("tbody").innerHTML = runs.length
+      ? shown.map((u) => `<tr><td>${hhmm(u.from)}</td><td>${hhmm(u.to)}</td><td>${CLS_LABEL[u.cls]}</td><td>${Math.round(u.mg)}</td></tr>`).join("") +
+        (shown.length < runs.length ? `<tr><td colspan="4"><button type="button" class="btn sm ghost" data-more>Mostrar mais ${runs.length - shown.length} trechos</button></td></tr>` : "")
       : `<tr><td colspan="4">Sem dados neste dia</td></tr>`;
     const rg = data.range;
     selP.hidden = !rg;

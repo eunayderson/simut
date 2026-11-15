@@ -48,6 +48,11 @@ code, kbd, samp, pre, .mono { font-family: var(--font-mono); font-variant-numeri
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
   white-space: nowrap; border: 0;
 }
+/* conteúdo para leitor de tela que aparece quando recebe foco do teclado (ex.: "Mostrar mais") */
+.visually-hidden.reveal-on-focus:focus-within {
+  position: static !important; width: auto; height: auto; margin: 0;
+  overflow: visible; clip: auto; clip-path: none; white-space: normal;
+}
 .small { font-size: var(--fs-sm); }
 .xsmall { font-size: var(--fs-xs); }
 .muted { color: var(--color-text-2); }
